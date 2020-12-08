@@ -4,6 +4,7 @@ Additional Nodes for Vehicle to Grid (V2G) communication
 
 from os import popen
 from subprocess import Popen
+import signal
 import shlex
 from mininet.node import Node
 from mininet.moduledeps import pathCheck
@@ -82,16 +83,21 @@ class EV( Electric ):
         self.cmd("cd ./"+self.folder)
 
 
-    def charge(self, intf=None):
+    def charge(self, background=False, intf=None):
         """Starting the charging process"""
         print("*** Looking for EVSE and start charging...")
 
         # setting the interface (default: default interface)
-        if not intf:
+        if intf is None:
             intf = self.intf().name
         self.intfSetup(self.folder, intf)
 
-        return self.cmdPrint("java -jar rise-v2g-evcc-*.jar")
+        p = self.popen("cd ./"+self.folder+"; java -jar rise-v2g-evcc-*.jar", shell=True)
+        if not background:
+            proc_stdout = p.communicate()[0].strip()
+            print(proc_stdout)
+
+
 
 class SE( Electric ):
     """An EV Supply Equipment (EVSE) is a Node containing which can
@@ -116,20 +122,36 @@ class SE( Electric ):
             backgroud: True if you want to do other things from the CLI"""
 
         # setting the interface (default: default interface)
-        if not intf:
+        if intf is None:
             intf = self.intf().name
         self.intfSetup(self.folder, intf)
 
-        #TODO: this must be changed, expecially for the (needed) background part
-        if background:
-            print("*** Starting waiting for EVs...")
-            self.cmdPrint("java -jar rise-v2g-secc-*.jar &")
+        # better promising approach, not yet perfet (TODO)
+        print("*** Starting waiting for EVs...")
+        self.p = self.popen("cd ./"+self.folder+"; java -jar rise-v2g-secc-*.jar", shell=True)
+        if not background:
+            proc_stdout = self.p.communicate()[0].strip()
+            print(proc_stdout)
+
+    def state(self):
+        """ Print and return the state of a backgrounded process"""
+        if hasattr(self, 'p'):
+            state = self.p.poll()
+            if state is None:
+                print("* Running!")
+            else:
+                print("* Stopped (State: {}).".format(state))
+            return state
         else:
-            print("*** Starting waiting for EVs... (CTRL-C to stop)")
-            self.cmdPrint("java -jar rise-v2g-secc-*.jar")
+            print("* The process does not exist. Call .start() first.")
+            return None
 
 
     def stop(self):
-        # is it working? boh
-        print("*** Stopping eventually backgrounded listening...")
-        self.cmd("^C")
+        # TODO: maybe can be usefull to print stdout
+        if hasattr(self, 'p'):
+            state = self.p.terminate() #send_signal(signal.SIGINT)
+            print("* Stopped successfully.")
+        else:
+            print("* The process does not exist. Call .start() first.")
+            return None
