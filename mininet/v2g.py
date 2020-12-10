@@ -11,16 +11,16 @@ from mininet.moduledeps import pathCheck
 from mininet.link import Intf
 import sys
 import fileinput
-import atexit # clean the mess on exit
+import atexit  # clean the mess on exit
 # to generate the random prefix for folders
 import random, string
 from mininet.net import Mininet
 
-class Electric( Node ):
+
+class Electric(Node):
     """A basic Node class with the support for V2G communication"""
 
-
-    def __init__( self, name, path=None, **kwargs ):
+    def __init__(self, name, path=None, **kwargs):
         # check if java is available (it is needed for RiseV2G)
         # maybe TODO add this in the installer
         pathCheck('java')
@@ -33,8 +33,9 @@ class Electric( Node ):
 
         # check if it exists
         if "No such file or directory" in popen('ls ' + self.RISE_PATH).read():
-            exit("**** Fatal error: directory %s not found. Select the right folder which contains the needed jar files.")
-        #TODO: check for the specific jar files
+            exit(
+                "*** Fatal error: directory %s not found. Select the right folder which contains the needed jar files.")
+        # TODO: check for the specific jar files
 
         Node.__init__(self, name, **kwargs)
 
@@ -44,44 +45,41 @@ class Electric( Node ):
         # cleanup of the generated folder
         def cleaner():
             print('*** Cleaning up the mess')
-            popen("rm -rd "+self.FOLDER_PREFIX+"*")
+            popen("rm -rd " + self.FOLDER_PREFIX + "*")
 
         atexit.register(cleaner)
 
-
     def intfSetup(self, folder, intfName=None):
-        "Set the intfName on the .properties file"
+        """Set the intfName on the .properties file"""
         # to decide if it is an ev or se it check the path;
         # if you change the default folder it is better to change this stuff
         if "ev" in folder:
-            prefix="EVCC"
+            prefix = "EVCC"
         else:
-            prefix="SECC"
+            prefix = "SECC"
 
-        for line in fileinput.input([folder+"/"+prefix+"Config.properties"], inplace=True):
+        for line in fileinput.input([folder + "/" + prefix + "Config.properties"], inplace=True):
             if line.strip().startswith('network.interface'):
-                line = 'network.interface = '+intfName+'\n'
+                line = 'network.interface = ' + intfName + '\n'
             sys.stdout.write(line)
 
 
-
-class EV( Electric ):
+class EV(Electric):
     """An Electric Vehicle (EV) is a Node containing all the
     necessary to be able to start the communication from its
     EV Communication Controller (EVCC) with a SECC to require charging service """
 
     def __init__(self, name, path=None, **kwargs):
-        self.name=str(name)
-        Electric.__init__( self, self.name, path, **kwargs)
+        self.name = str(name)
+        Electric.__init__(self, self.name, path, **kwargs)
 
         self.folder = self.FOLDER_PREFIX + "_ev_" + self.name
-        self.cmd("mkdir "+self.folder)
-        self.cmd("cp "+self.RISE_PATH+"/EVCCConfig.properties "+self.folder+"/")
+        self.cmd("mkdir " + self.folder)
+        self.cmd("cp " + self.RISE_PATH + "/EVCCConfig.properties " + self.folder + "/")
         # this cp can resist to update of risev2g but you must have only one version
-        self.cmd("cp "+self.RISE_PATH+"/rise-v2g-evcc-*.jar "+self.folder+"/")
+        self.cmd("cp " + self.RISE_PATH + "/rise-v2g-evcc-*.jar " + self.folder + "/")
         # cd into the right folder
-        self.cmd("cd ./"+self.folder)
-
+        self.cmd("cd ./" + self.folder)
 
     def charge(self, background=False, intf=None):
         """Starting the charging process"""
@@ -92,32 +90,30 @@ class EV( Electric ):
             intf = self.intf().name
         self.intfSetup(self.folder, intf)
 
-        p = self.popen("cd ./"+self.folder+"; java -jar rise-v2g-evcc-*.jar", shell=True)
+        p = self.popen("cd ./" + self.folder + "; java -jar rise-v2g-evcc-*.jar", shell=True)
         if not background:
             proc_stdout = p.communicate()[0].strip()
             print(proc_stdout)
 
 
-
-class SE( Electric ):
+class SE(Electric):
     """An EV Supply Equipment (EVSE) is a Node containing which can
     provide charging services to an EV by communication using the
     Supply Equipment Communication Controller (SECC) """
 
     def __init__(self, name, path=None, **kwargs):
-        self.name=str(name)
-        Electric.__init__( self, self.name, path, **kwargs)
+        self.name = str(name)
+        Electric.__init__(self, self.name, path, **kwargs)
 
         self.folder = self.FOLDER_PREFIX + "_se_" + self.name
-        self.cmd("mkdir "+self.folder)
-        self.cmd("cp "+self.RISE_PATH+"/SECCConfig.properties "+self.folder+"/")
+        self.cmd("mkdir " + self.folder)
+        self.cmd("cp " + self.RISE_PATH + "/SECCConfig.properties " + self.folder + "/")
         # this cp can resist to update of risev2g but you must have onyl one version
-        self.cmd("cp "+self.RISE_PATH+"/rise-v2g-secc-*.jar "+self.folder+"/")
+        self.cmd("cp " + self.RISE_PATH + "/rise-v2g-secc-*.jar " + self.folder + "/")
         # cd into the right folder
-        self.cmd("cd ./"+self.folder)
+        self.cmd("cd ./" + self.folder)
 
-
-    def start(self, background=False, intf=None):
+    def startCharge(self, background=False, intf=None):
         """ Start the listening phase.
             backgroud: True if you want to do other things from the CLI"""
 
@@ -128,7 +124,7 @@ class SE( Electric ):
 
         # better promising approach, not yet perfet (TODO)
         print("*** Starting waiting for EVs...")
-        self.p = self.popen("cd ./"+self.folder+"; java -jar rise-v2g-secc-*.jar", shell=True)
+        self.p = self.popen("cd ./" + self.folder + "; java -jar rise-v2g-secc-*.jar", shell=True)
         if not background:
             proc_stdout = self.p.communicate()[0].strip()
             print(proc_stdout)
@@ -146,11 +142,10 @@ class SE( Electric ):
             print("* The process does not exist. Call .start() first.")
             return None
 
-
-    def stop(self):
+    def stopCharge(self):
         # TODO: maybe can be usefull to print stdout
         if hasattr(self, 'p'):
-            state = self.p.terminate() #send_signal(signal.SIGINT)
+            state = self.p.terminate()  # send_signal(signal.SIGINT)
             print("* Stopped successfully.")
         else:
             print("* The process does not exist. Call .start() first.")
