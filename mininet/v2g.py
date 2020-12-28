@@ -110,7 +110,7 @@ class EV(Electric):
 
 
 class SE(Electric):
-    """An EV Supply Equipment (EVSE) is a Node containing which can
+    """An EV Supply Equipment (EVSE) is a Node which can
     provide charging services to an EV by communication using the
     Supply Equipment Communication Controller (SECC)
     """
@@ -127,11 +127,11 @@ class SE(Electric):
         # cd into the right folder
         self.cmd("cd ./{}".format(self.folder))
 
-    def startCharge(self, intf=None):
+    def startCharge(self, in_xterm=True, intf=None):
         """
         Spawn an xterm and start the listening phase in it.
-        It is not possible to launch it without xterm because otherwise it sometime randomly crashes.
-        :param intf: Interface in which listen for charging requests. If None, default is used.
+        It is not possible to launch it without xterm because otherwise sometimes it randomly crashes.
+        :param intf: Interface to listen for charging requests. If None, default is used.
         :returns A popen xterm instance. To be appended to "net.terms" to assure a correct close on exit."""
 
         # setting the interface (default: default interface)
@@ -140,9 +140,17 @@ class SE(Electric):
         self.intfSetup(self.folder, intf)
 
         print("*** Starting waiting for EVs...")
-        command = "cd ./{}; java -jar rise-v2g-secc-*.jar; bash -i".format(self.folder)
-        # this return a list of just one xterm, so [0] is needed
-        self.proc = makeTerm(self, cmd="bash -i -c '{}'".format(command))[0]
+        if in_xterm:
+            # run inside an xterm. You must append the return value to net.terms to terminal on exit.
+            command = "cd ./{}; java -jar rise-v2g-secc-*.jar; bash -i".format(self.folder)
+            # this return a list of just one xterm, so [0] is needed
+            self.proc = makeTerm(self, cmd="bash -i -c '{}'".format(command))[0]
+        else:
+            # TODO: test this
+            self.proc = self.popen("cd ./{}; java -jar rise-v2g-secc-*.jar".format(self.folder), shell=True)
+            # print the stdout to the CLI at the start of the charging process
+            proc_stdout = self.proc.communicate(timeout=15)[0].strip()
+            print(proc_stdout)
         return self.proc
 
     def state(self):

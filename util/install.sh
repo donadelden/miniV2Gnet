@@ -68,6 +68,17 @@ if [ "$DIST" = "SUSE Linux" ]; then
 		$install openSUSE-release
     fi
 fi
+# NOT RECOMMENDED TO INSTALL ANYTHING OTHER THAN: -g
+test -e /etc/arch-release && DIST="Arch Linux"
+if [ "$DIST" = "Arch Linux" ]; then
+    install='sudo pacman -S --noconfirm'
+    remove='sudo pacman -Rs --noconfirm'
+    update='pacman -Syu'
+    # Prereqs for this script
+    if ! which lsb_release &> /dev/null; then
+		$install lsb-release
+    fi
+fi
 if which lsb_release &> /dev/null; then
     DIST=`lsb_release -is`
     RELEASE=`lsb_release -rs`
@@ -83,9 +94,9 @@ KERNEL_HEADERS=kernel-headers-${KERNEL_NAME}
 # Treat Raspbian as Debian
 [ "$DIST" = 'Raspbian' ] && DIST='Debian'
 
-DISTS='Ubuntu|Debian|Fedora|RedHatEnterpriseServer|SUSE LINUX'
+DISTS='Ubuntu|Debian|Fedora|RedHatEnterpriseServer|SUSE LINUX|Arch'
 if ! echo $DIST | egrep "$DISTS" >/dev/null; then
-    echo "Install.sh currently only supports $DISTS."
+    echo "Install.sh currently only supports $DISTS. Some functions may be supported by other distros (e.g. -g)"
     exit 1
 fi
 
@@ -264,6 +275,31 @@ function of13 {
     make
     sudo make install
     cd $BUILD_DIR
+}
+
+
+function v2g {
+    echo "Installing v2g..."
+    # Copy jar files to local directory
+    sudo mkdir -p /usr/share/.miniV2G/RiseV2G
+    # TODO: alternative is to download from the internet the most updated version
+    sudo cp $MININET_DIR/miniV2G/util/RiseV2G/* /usr/share/.miniV2G/RiseV2G
+
+    if [ -n `which java` ]; then
+        echo "Java is installed"
+    else
+        # Debian, Ubuntu, etc.
+        if [ "$DIST" = "Ubuntu" ] || [ "$DIST" = "Debian" ]; then
+            echo "Installing java..."
+            $install openjdk-8-jre
+        # Fedora, Oracle Linux, Red Hat Enterprise Linux, etc.
+        elif [ "$DIST" = "Fedora" -o "$DIST" = "RedHatEnterpriseServer" ]; then
+            echo "Installing java..."
+            $install java-1.8.0-openjdk
+        else
+            echo "Please, Install Java. It is required to run v2g."
+        fi
+    fi
 }
 
 
@@ -794,7 +830,7 @@ exit 0
 }
 
 function usage {
-    printf '\nUsage: %s [-abcdfhikmnprtvVwxy03]\n\n' $(basename $0) >&2
+    printf '\nUsage: %s [-abcdfghikmnprtvVwxy03]\n\n' $(basename $0) >&2
 
     printf 'This install script attempts to install useful packages\n' >&2
     printf 'for Mininet. It should (hopefully) work on Ubuntu 11.10+\n' >&2
@@ -809,6 +845,7 @@ function usage {
     printf -- ' -d: (D)elete some sensitive files from a VM image\n' >&2
     printf -- ' -e: install Mininet d(E)veloper dependencies\n' >&2
     printf -- ' -f: install Open(F)low\n' >&2
+    printf -- ' -g: install RiseV2(G)\n' >&2
     printf -- ' -h: print this (H)elp message\n' >&2
     printf -- ' -i: install (I)ndigo Virtual Switch\n' >&2
     printf -- ' -k: install new (K)ernel\n' >&2
@@ -834,7 +871,7 @@ if [ $# -eq 0 ]
 then
     all
 else
-    while getopts 'abcdefhikmnprs:tvV:wxy03' OPTION
+    while getopts 'abcdefghikmnprs:tvV:wxy03' OPTION
     do
       case $OPTION in
       a)    all;;
@@ -847,6 +884,7 @@ else
             1.3) of13;;
             *)  echo "Invalid OpenFlow version $OF_VERSION";;
             esac;;
+      g)    v2g;;
       h)    usage;;
       i)    ivs;;
       k)    kernel;;

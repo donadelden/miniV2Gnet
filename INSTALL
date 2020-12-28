@@ -9,6 +9,10 @@ The supported installation methods for Mininet are 1) using a
 pre-built VM image, and 2) native installation on Ubuntu. You can also
 easily create your own Mininet VM image (4).
 
+Some functions (e.g. RiseV2G), require installation via util/install.sh 
+(*WARNING: USE AT YOUR OWN RISK!*).
+For example, run `util/install.sh -g` to install RiseV2G on your machine.
+
 (Other distributions may be supported in the future - if you would
 like to contribute an installation script, we would welcome it!)
 
@@ -41,6 +45,17 @@ like to contribute an installation script, we would welcome it!)
 
         sudo rm /usr/local/bin/ovs*
         sudo rm /usr/local/sbin/ovs*
+
+2.1 On Arch Linux, use the AUR package!
+
+   To install Mininet itself (i.e. `mn` and the Python API):
+
+        sudo yay -S mininet
+
+   Note: you need to start two ovs services:
+
+        sudo systemctl start ovs-vswitchd.service
+        sudo systemctl start ovsdb-server.service
 
 3. Native installation from source
 
