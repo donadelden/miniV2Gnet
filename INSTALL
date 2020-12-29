@@ -50,7 +50,7 @@ like to contribute an installation script, we would welcome it!)
 
    To install Mininet itself (i.e. `mn` and the Python API):
 
-        sudo yay -S mininet
+        yay -S mininet
 
    Note: you need to start two ovs services:
 

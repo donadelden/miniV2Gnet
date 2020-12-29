@@ -19,11 +19,9 @@ class Electric(Node):
     """A basic Node class with the support for V2G communication"""
 
     def __init__(self, name, path=None, **kwargs):
-        # check if java is available (it is needed for RiseV2G)
-        # maybe TODO add this in the installer
+        # double check if java is available (it is needed for RiseV2G)
         pathCheck('java')
         # set the path of RiseV2G
-        # TODO: add on the installer a copy to this folder
         if path is not None:
             self.RISE_PATH = path
         else:

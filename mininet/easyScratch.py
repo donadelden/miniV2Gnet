@@ -1,14 +1,10 @@
 """ Really simple and minimal testing module for v2g
 
-    Since the project is on an alpha version:
-    - Install in your machine the usual mininet;
+    To install RiseV2G on your local machine run: util/install.sh -g.
+    It will:
     - Create the directory /usr/share/.miniV2G/RiseV2G and copy in it all the RiseV2G files (two jar and two config);
-    - Run this script from the folder that contains v2g.py.
-
-    Install or make sure you have:
-    - xorg-xhost
-    - xterm
-    TODO: In future all this stuff will be automatically done by the installer
+    - Make sure java is installed and install it otherwise.
+    - Install or make sure you have: xorg-xhost, xterm
 """
 
 

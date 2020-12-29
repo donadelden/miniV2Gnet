@@ -285,20 +285,32 @@ function v2g {
     # TODO: alternative is to download from the internet the most updated version
     sudo cp $MININET_DIR/miniV2G/util/RiseV2G/* /usr/share/.miniV2G/RiseV2G
 
-    if [ -n `which java` ]; then
-        echo "Java is installed"
-    else
-        # Debian, Ubuntu, etc.
+    if ! which java; then
+        echo "Installing java..."
         if [ "$DIST" = "Ubuntu" ] || [ "$DIST" = "Debian" ]; then
-            echo "Installing java..."
             $install openjdk-8-jre
         # Fedora, Oracle Linux, Red Hat Enterprise Linux, etc.
         elif [ "$DIST" = "Fedora" -o "$DIST" = "RedHatEnterpriseServer" ]; then
-            echo "Installing java..."
             $install java-1.8.0-openjdk
+        elif [ "$DIST" = "Arch" ]; then
+            $install java-openjdk
         else
             echo "Please, Install Java. It is required to run v2g."
         fi
+    fi
+
+    if ! which xhost; then
+        echo "Installing xhost..."
+        if [ "$DIST" = "Arch" ]; then
+            $install xorg-xhost
+        else
+            echo "Please, Install xhost. It is required to run term.py."
+        fi
+    fi
+
+    if ! which xterm; then
+        echo "Installing xterm..."
+        $install xterm
     fi
 }
 
