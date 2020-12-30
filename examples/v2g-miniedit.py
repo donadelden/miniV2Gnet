@@ -8,9 +8,11 @@ GUI application using Mininet as the network model.
 
 Bob Lantz, April 2010
 Gregory Gee, July 2013
+Donadel Denis, December 2020
 
 Controller icon from http://semlabs.co.uk/
 OpenFlow icon from https://www.opennetworking.org/
+V2G icons from https://www.freepik.com/
 """
 
 # Miniedit needs some work in order to pass pylint...
@@ -485,29 +487,6 @@ class HostDialog(CustomDialog):
         if 'defaultRoute' in self.prefValues:
             self.routeEntry.insert(0, self.prefValues['defaultRoute'])
 
-        # Field for CPU
-        Label(self.propFrame, text="Amount CPU:").grid(row=3, sticky=E)
-        self.cpuEntry = Entry(self.propFrame)
-        self.cpuEntry.grid(row=3, column=1)
-        if 'cpu' in self.prefValues:
-            self.cpuEntry.insert(0, str(self.prefValues['cpu']))
-        # Selection of Scheduler
-        if 'sched' in self.prefValues:
-            sched =  self.prefValues['sched']
-        else:
-            sched = 'host'
-        self.schedVar = StringVar(self.propFrame)
-        self.schedOption = OptionMenu(self.propFrame, self.schedVar, "host", "cfs", "rt")
-        self.schedOption.grid(row=3, column=2, sticky=W)
-        self.schedVar.set(sched)
-
-        # Selection of Cores
-        Label(self.propFrame, text="Cores:").grid(row=4, sticky=E)
-        self.coreEntry = Entry(self.propFrame)
-        self.coreEntry.grid(row=4, column=1)
-        if 'cores' in self.prefValues:
-            self.coreEntry.insert(1, self.prefValues['cores'])
-
         # Start command
         Label(self.propFrame, text="Start Command:").grid(row=5, sticky=E)
         self.startEntry = Entry(self.propFrame)
@@ -584,6 +563,31 @@ class HostDialog(CustomDialog):
 
     def body(self, master):
         n = self.bodyHelper(master)
+
+        ### TAB 4 - Integration
+        # Field for CPU
+        Label(self.propFrame, text="Amount CPU:").grid(row=3, sticky=E)
+        self.cpuEntry = Entry(self.propFrame)
+        self.cpuEntry.grid(row=3, column=1)
+        if 'cpu' in self.prefValues:
+            self.cpuEntry.insert(0, str(self.prefValues['cpu']))
+        # Selection of Scheduler
+        if 'sched' in self.prefValues:
+            sched =  self.prefValues['sched']
+        else:
+            sched = 'host'
+        self.schedVar = StringVar(self.propFrame)
+        self.schedOption = OptionMenu(self.propFrame, self.schedVar, "host", "cfs", "rt")
+        self.schedOption.grid(row=3, column=2, sticky=W)
+        self.schedVar.set(sched)
+
+        # Selection of Cores
+        Label(self.propFrame, text="Cores:").grid(row=4, sticky=E)
+        self.coreEntry = Entry(self.propFrame)
+        self.coreEntry.grid(row=4, column=1)
+        if 'cores' in self.prefValues:
+            self.coreEntry.insert(1, self.prefValues['cores'])
+
         n.pack()
 
     def addDirectory( self ):
@@ -1863,7 +1867,8 @@ class MiniEdit( Frame ):
             f.write("from mininet.node import Controller, RemoteController, OVSController\n")
             f.write("from mininet.node import CPULimitedHost, Host, Node\n")
             f.write("from mininet.node import OVSKernelSwitch, UserSwitch\n")
-            #f.write("from mininet.v2g import EV, SE")  # TODO: activate this in the end !!!!!!!!!
+            #f.write("from mininet.v2g import EV, SE\n")  # TODO: activate this in the end !!!!!!!!!
+            f.write("from v2g import EV, SE\n") # TODO: and deactivate this here
             if StrictVersion(MININET_VERSION) > StrictVersion('2.0'):
                 f.write("from mininet.node import IVSSwitch\n")
             f.write("from mininet.cli import CLI\n")
@@ -2019,17 +2024,9 @@ class MiniEdit( Frame ):
                         ipBaseNum, prefixLen = netParse(self.appPrefs['ipBase'])
                         ip = ipAdd(i=nodeNum, prefixLen=prefixLen, ipBaseNum=ipBaseNum)
 
-                    if 'cores' in opts or 'cpu' in opts:
-                        f.write(
-                            "    " + name + " = net.addHost('" + name + "', cls=CPULimitedHost, ip='" + ip + "', defaultRoute=" + defaultRoute + ")\n")
-                        if 'cores' in opts:
-                            f.write("    " + name + ".setCPUs(cores='" + opts['cores'] + "')\n")
-                        if 'cpu' in opts:
-                            f.write("    " + name + ".setCPUFrac(f=" + str(opts['cpu']) + ", sched='" + opts[
-                                'sched'] + "')\n")
-                    else:
-                        f.write(
-                            "    " + name + " = net.addHost('" + name + "', cls=Host, ip='" + ip + "', defaultRoute=" + defaultRoute + ")\n")
+                    f.write("    " + name + " = net.addHost('" + name + "', cls=EV, ip='" + ip + "', defaultRoute=" +
+                            defaultRoute + ")\n")
+
                     if 'externalInterfaces' in opts:
                         for extInterface in opts['externalInterfaces']:
                             f.write("    Intf( '" + extInterface + "', node=" + name + " )\n")
@@ -2049,17 +2046,8 @@ class MiniEdit( Frame ):
                         ipBaseNum, prefixLen = netParse(self.appPrefs['ipBase'])
                         ip = ipAdd(i=nodeNum, prefixLen=prefixLen, ipBaseNum=ipBaseNum)
 
-                    if 'cores' in opts or 'cpu' in opts:
-                        f.write(
-                            "    " + name + " = net.addHost('" + name + "', cls=CPULimitedHost, ip='" + ip + "', defaultRoute=" + defaultRoute + ")\n")
-                        if 'cores' in opts:
-                            f.write("    " + name + ".setCPUs(cores='" + opts['cores'] + "')\n")
-                        if 'cpu' in opts:
-                            f.write("    " + name + ".setCPUFrac(f=" + str(opts['cpu']) + ", sched='" + opts[
-                                'sched'] + "')\n")
-                    else:
-                        f.write(
-                            "    " + name + " = net.addHost('" + name + "', cls=Host, ip='" + ip + "', defaultRoute=" + defaultRoute + ")\n")
+                    f.write("    " + name + " = net.addHost('" + name + "', cls=SE, ip='" + ip + "', defaultRoute=" +
+                            defaultRoute + ")\n")
                     if 'externalInterfaces' in opts:
                         for extInterface in opts['externalInterfaces']:
                             f.write("    Intf( '" + extInterface + "', node=" + name + " )\n")
@@ -2391,13 +2379,13 @@ class MiniEdit( Frame ):
         if 'EV' == node:
             self.evCount += 1
             name = self.nodePrefixes[ node ] + str( self.evCount )
-            self.evOpts[name] = {'sched':'host'}
+            self.evOpts[name] = {'sched':'EV'}
             self.evOpts[name]['nodeNum']=self.evCount
             self.evOpts[name]['hostname']=name
         if 'SE' == node:
             self.seCount += 1
             name = self.nodePrefixes[ node ] + str( self.seCount )
-            self.seOpts[name] = {'sched':'host'}
+            self.seOpts[name] = {'sched':'SE'}
             self.seOpts[name]['nodeNum']=self.seCount
             self.seOpts[name]['hostname']=name
         if 'Controller' == node:
@@ -2442,11 +2430,11 @@ class MiniEdit( Frame ):
         self.newNode( 'Host', event )
 
     def clickEV( self, event ):
-        "Add a new host to our canvas."
+        "Add a new EV to our canvas."
         self.newNode( 'EV', event )
 
     def clickSE( self, event ):
-        "Add a new host to our canvas."
+        "Add a new SE to our canvas."
         self.newNode( 'SE', event )
 
     def clickLegacyRouter( self, event ):
@@ -2634,20 +2622,23 @@ class MiniEdit( Frame ):
             return
         # For now, don't allow hosts to be directly linked
         # At the moment EV and SE must be in the same net, so Router in the middle not working by default
+        # Avoided also connections EV<-->EV and SE<-->SE, could it be useful?
         stags = self.canvas.gettags( self.widgetToItem[ source ] )
         dtags = self.canvas.gettags( target )
         if (('Host' in stags and 'Host' in dtags) or
-           ('Controller' in dtags and 'LegacyRouter' in stags) or
-           ('Controller' in stags and 'LegacyRouter' in dtags) or
-           ('Controller' in dtags and 'LegacySwitch' in stags) or
-           ('Controller' in stags and 'LegacySwitch' in dtags) or
-           ('Controller' in dtags and 'Host' in stags) or
-           ('Controller' in stags and 'Host' in dtags) or
-           ('Controller' in stags and 'Controller' in dtags) or
-           ('Controller' in stags and 'EV' in dtags) or
-           ('Controller' in dtags and 'EV' in stags) or
-           ('Controller' in stags and 'SE' in dtags) or
-           ('Controller' in dtags and 'SE' in stags)):
+            ('Controller' in dtags and 'LegacyRouter' in stags) or
+            ('Controller' in stags and 'LegacyRouter' in dtags) or
+            ('Controller' in dtags and 'LegacySwitch' in stags) or
+            ('Controller' in stags and 'LegacySwitch' in dtags) or
+            ('Controller' in dtags and 'Host' in stags) or
+            ('Controller' in stags and 'Host' in dtags) or
+            ('Controller' in stags and 'Controller' in dtags) or
+            ('Controller' in stags and 'EV' in dtags) or
+            ('Controller' in dtags and 'EV' in stags) or
+            ('Controller' in stags and 'SE' in dtags) or
+            ('Controller' in dtags and 'SE' in stags) or
+            ('SE' in stags and 'SE' in dtags) or
+            ('EV' in dtags and 'EV' in stags)):
             self.releaseNetLink( event )
             return
 
@@ -2793,10 +2784,6 @@ class MiniEdit( Frame ):
                 newHostOpts['startCommand'] = hostBox.result['startCommand']
             if len(hostBox.result['stopCommand']) > 0:
                 newHostOpts['stopCommand'] = hostBox.result['stopCommand']
-            if len(hostBox.result['cpu']) > 0:
-                newHostOpts['cpu'] = float(hostBox.result['cpu'])
-            if len(hostBox.result['cores']) > 0:
-                newHostOpts['cores'] = hostBox.result['cores']
             if len(hostBox.result['hostname']) > 0:
                 newHostOpts['hostname'] = hostBox.result['hostname']
                 name = hostBox.result['hostname']
@@ -2835,10 +2822,6 @@ class MiniEdit( Frame ):
                 newHostOpts['startCommand'] = hostBox.result['startCommand']
             if len(hostBox.result['stopCommand']) > 0:
                 newHostOpts['stopCommand'] = hostBox.result['stopCommand']
-            if len(hostBox.result['cpu']) > 0:
-                newHostOpts['cpu'] = float(hostBox.result['cpu'])
-            if len(hostBox.result['cores']) > 0:
-                newHostOpts['cores'] = hostBox.result['cores']
             if len(hostBox.result['hostname']) > 0:
                 newHostOpts['hostname'] = hostBox.result['hostname']
                 name = hostBox.result['hostname']
@@ -3201,8 +3184,7 @@ class MiniEdit( Frame ):
 
                 # Create the correct host class
                 if 'privateDirectory' in opts:
-                    hostCls = partial( EV,
-                                      privateDirs=opts['privateDirectory'] )
+                    hostCls = partial( EV, privateDirs=opts['privateDirectory'] )
                 else:
                     hostCls=EV
                 debug( hostCls, '\n' )
@@ -3211,12 +3193,6 @@ class MiniEdit( Frame ):
                                        ip=ip,
                                        defaultRoute=defaultRoute
                                       )
-
-                # Set the CPULimitedHost specific options
-                if 'cores' in opts:
-                    newEV.setCPUs(cores = opts['cores'])
-                if 'cpu' in opts:
-                    newEV.setCPUFrac(f=opts['cpu'], sched=opts['sched'])
 
                 # Attach external interfaces
                 if 'externalInterfaces' in opts:
@@ -3245,8 +3221,7 @@ class MiniEdit( Frame ):
 
                 # Create the correct host class
                 if 'privateDirectory' in opts:
-                    hostCls = partial( SE,
-                                       privateDirs=opts['privateDirectory'] )
+                    hostCls = partial( SE, privateDirs=opts['privateDirectory'] )
                 else:
                     hostCls=SE
                 debug( hostCls, '\n' )
@@ -3255,12 +3230,6 @@ class MiniEdit( Frame ):
                                        ip=ip,
                                        defaultRoute=defaultRoute
                                       )
-
-                # Set the CPULimitedHost specific options
-                if 'cores' in opts:
-                    newSE.setCPUs(cores = opts['cores'])
-                if 'cpu' in opts:
-                    newSE.setCPUFrac(f=opts['cpu'], sched=opts['sched'])
 
                 # Attach external interfaces
                 if 'externalInterfaces' in opts:
@@ -3630,7 +3599,6 @@ class MiniEdit( Frame ):
                 # make sure to release the grab (Tk 8.0a1 only)
                 self.switchRunPopup.grab_release()
 
-    # TODO: check this for EV/SE
     def xterm( self, _ignore=None ):
         "Make an xterm when a button is pressed."
         if ( self.selection is None or
