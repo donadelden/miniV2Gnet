@@ -410,7 +410,7 @@ class PrefsDialog(tkSimpleDialog.Dialog):
 
 class CustomDialog(object):
 
-    # TODO: Fix button placement and Title and window focus lock
+    # (old) TODO: Fix button placement and Title and window focus lock
     def __init__(self, master, _title):
         self.top=Toplevel(master)
 
@@ -1618,7 +1618,7 @@ class MiniEdit( Frame ):
                         else:
                             newDirList.append(privateDir)
                     EV['opts']['privateDirectory'] = newDirList
-                self.hostOpts[hostname] = EV['opts']
+                self.evOpts[hostname] = EV['opts']
                 icon = self.findWidgetByName(hostname)
                 icon.bind('<Button-3>', self.do_evPopup)
 
@@ -1646,7 +1646,7 @@ class MiniEdit( Frame ):
                     else:
                         newDirList.append(privateDir)
                 SE['opts']['privateDirectory'] = newDirList
-            self.hostOpts[hostname] = SE['opts']
+            self.seOpts[hostname] = SE['opts']
             icon = self.findWidgetByName(hostname)
             icon.bind('<Button-3>', self.do_sePopup)
 
@@ -1800,14 +1800,14 @@ class MiniEdit( Frame ):
                                   'x':str(x1),
                                   'y':str(y1),
                                   'opts':self.evOpts[name] }
-                    hostsToSave.append(nodeToSave)
+                    evToSave.append(nodeToSave)
                 elif 'SE' in tags:
                     nodeNum = self.seOpts[name]['nodeNum']
                     nodeToSave = {'number':str(nodeNum),
                                   'x':str(x1),
                                   'y':str(y1),
                                   'opts':self.seOpts[name] }
-                    hostsToSave.append(nodeToSave)
+                    seToSave.append(nodeToSave)
                 elif 'Controller' in tags:
                     nodeToSave = {'x':str(x1),
                                   'y':str(y1),
@@ -3684,7 +3684,6 @@ class MiniEdit( Frame ):
         else:
             raise Exception( 'could not find custom file: %s' % fileName )
 
-    # TODO: to be fixed for V2G, need MiniV2G object or Mininet expanded
     def importTopo( self ):
         info( 'topo='+self.options.topo, '\n' )
         if self.options.topo == 'none':
@@ -3764,17 +3763,46 @@ class MiniEdit( Frame ):
         info( 'hosts:'+str(len(importNet.hosts)), '\n' )
         columnCount = 0
         for host in importNet.hosts:
-            name = host.name
-            self.hostOpts[name] = {'sched':'host'}
-            self.hostOpts[name]['nodeNum']=self.hostCount
-            self.hostOpts[name]['hostname']=name
-            self.hostOpts[name]['ip']=host.IP()
+            # TODO: find a better way to identify ev/se since the name can be changed
+            if 'ev' in host.name:
+                name = host.name
+                self.evOpts[name] = {'sched': 'EV'}
+                self.evOpts[name]['nodeNum'] = self.evCount
+                self.evOpts[name]['hostname'] = name
+                self.evOpts[name]['ip'] = host.IP()
 
-            x = columnCount*100+100
-            self.addNode('Host', self.hostCount,
-                 float(x), float(currentY), name=name)
-            icon = self.findWidgetByName(name)
-            icon.bind('<Button-3>', self.do_hostPopup )
+                x = columnCount * 100 + 100
+                self.addNode('EV', self.evCount,
+                             float(x), float(currentY), name=name)
+                icon = self.findWidgetByName(name)
+                icon.bind('<Button-3>', self.do_evPopup)
+
+            elif 'se' in host.name:
+                name = host.name
+                self.seOpts[name] = {'sched': 'SE'}
+                self.seOpts[name]['nodeNum'] = self.seCount
+                self.seOpts[name]['hostname'] = name
+                self.seOpts[name]['ip'] = host.IP()
+
+                x = columnCount * 100 + 100
+                self.addNode('SE', self.seCount,
+                             float(x), float(currentY), name=name)
+                icon = self.findWidgetByName(name)
+                icon.bind('<Button-3>', self.do_sePopup)
+
+            else:  # standard host
+                name = host.name
+                self.hostOpts[name] = {'sched':'host'}
+                self.hostOpts[name]['nodeNum']=self.hostCount
+                self.hostOpts[name]['hostname']=name
+                self.hostOpts[name]['ip']=host.IP()
+    
+                x = columnCount*100+100
+                self.addNode('Host', self.hostCount,
+                     float(x), float(currentY), name=name)
+                icon = self.findWidgetByName(name)
+                icon.bind('<Button-3>', self.do_hostPopup )
+                
             if columnCount == 9:
                 columnCount = 0
                 currentY = currentY + rowIncrement
