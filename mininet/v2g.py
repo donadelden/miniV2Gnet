@@ -42,6 +42,9 @@ class Electric(Node):
         prefix_len = 4
         self.FOLDER_PREFIX = ''.join(random.choice(string.ascii_lowercase) for i in range(prefix_len))
 
+        # initialize the folder for the RiseV2G copy
+        self.folder = ""
+
         # cleanup of the generated folder
         def cleaner():
             print('*** Cleaning up the mess')
@@ -49,21 +52,59 @@ class Electric(Node):
 
         atexit.register(cleaner)
 
-    def intfSetup(self, folder, intfName=None):
+        # set the available charging modes
+        self.modes_available = ["AC_single_phase_core", "AC_three_phase_core", "DC_core", "DC_extended",
+                                "DC_combo_core", "DC_unique"]
+        # available payment systems
+        self.payment_available = ["Contract", "ExternalPayment"]
+
+    def intfSetup(self, intfName=None):
         """Sets the intfName on the .properties file.
-        :param folder: the subfolder containing the designated RiseV2G jar file
-        :param intfName: """
-        # to decide if it is an ev or se it check the path;
-        # if you change the default folder it is better to change this stuff
-        if "ev" in folder:
+        :param intfName: the intfName to be setted. """
+
+        return self.setProperty('network.interface', intfName)
+
+    def setProperty(self, prop_name, prop_value):
+        """
+        Set a specified property.
+        :param prop_name: the name of the property
+        :param prop_value: the new value of the property
+        :return True if all ok, False if exceptions occurs """
+
+        # check and set the prefix values
+        if "ev" in self.folder:
             prefix = "EVCC"
         else:
             prefix = "SECC"
 
-        for line in fileinput.input([folder + "/" + prefix + "Config.properties"], inplace=True):
-            if line.strip().startswith('network.interface'):
-                line = 'network.interface = {}\n'.format(intfName)
-            sys.stdout.write(line)
+        try:
+            f = fileinput.input([self.folder + "/" + prefix + "Config.properties"], inplace=True)
+            for line in f:
+                if line.strip().startswith(prop_name):
+                    line = '{} = {}\n'.format(prop_name, prop_value)
+                sys.stdout.write(line)
+            f.close()
+            return True
+        except Exception as e:
+            print("*** Problem in writing properties ({}).".format(e))
+            return False
+
+    def printProperties(self):
+
+        # to decide if it is an ev or se it check the path;
+        # if you change the default folder it is better to change this stuff
+        if "ev" in self.folder:
+            prefix = "EVCC"
+        else:
+            prefix = "SECC"
+
+        f = fileinput.input([self.folder + "/" + prefix + "Config.properties"], mode='r')
+        for line in f:
+            if not line.strip().startswith('#'):
+                print(line)
+        f.close()
+
+
 
 
 class EV(Electric):
@@ -92,7 +133,7 @@ class EV(Electric):
         # setting the interface (default: default interface)
         if intf is None:
             intf = self.intf().name
-        self.intfSetup(self.folder, intf)
+        self.intfSetup(intf)
 
         if in_xterm:
             # run inside an xterm. You must append the return value to net.terms to terminal on exit.
@@ -105,6 +146,22 @@ class EV(Electric):
             # print the stdout to the CLI at the end of the charging process
             proc_stdout = self.proc.communicate()[0].strip()
             print(proc_stdout)
+
+    def setEnergyTransferRequested(self, req):
+        """ Set the energy transfer modes
+        :param req: the requested energy transfer mode
+        """
+
+        if isinstance(req, str):
+            # check if the mode is available
+            if req in self.modes_available:
+                return self.setProperty('energy.transfermode.requested', req)
+            else:
+                print("*** Modes available: {}".format(self.modes_available))
+                return False
+        else:
+            print("*** You must provide a sting, a list or a set.")
+            return False
 
 
 class SE(Electric):
@@ -135,7 +192,7 @@ class SE(Electric):
         # setting the interface (default: default interface)
         if intf is None:
             intf = self.intf().name
-        self.intfSetup(self.folder, intf)
+        self.intfSetup(intf)
 
         print("*** Starting waiting for EVs...")
         if in_xterm:
@@ -176,4 +233,58 @@ class SE(Electric):
             return True
         else:
             print("* The process does not exist. Call .startCharge() first.")
+            return False
+
+    def setEnergyTransferModes(self, modes):
+        """ Set the energy transfer modes
+        :param modes: the modes available
+        """
+
+        if isinstance(modes, list) or isinstance(modes, set):
+            # check if the modes are available
+            if all(m in self.modes_available for m in modes):
+                return self.setProperty('energy.transfermodes.supported', ', '.join(modes))
+            else:
+                print("*** Modes available: {}".format(self.modes_available))
+        elif isinstance(modes, str):
+            # check if the mode is available
+            if modes in self.modes_available:
+                return self.setProperty('energy.transfermodes.supported', modes)
+            else:
+                print("*** Modes available: {}".format(self.modes_available))
+                return False
+        else:
+            print("*** You must provide a sting, a list or a set.")
+            return False
+
+    def setChargingFree(self, free=True):
+        """ Set if the nergy transfer is free or not
+        :param free: charging type (True for free charging, False otherwise)
+        """
+
+        if free:
+            return self.setProperty('energy.transfermodes.supported', 'true')
+        else:
+            return self.setProperty('energy.transfermodes.supported', 'false')
+
+    def setPaymentOption(self, payments):
+        """ Set if the nergy transfer is free or not
+        :param payments: payment modes to be supported
+        """
+
+        if isinstance(payments, list) or isinstance(payments, set):
+            # check if the payments are available
+            if all(m in self.payment_available for m in payments):
+                return self.setProperty('authentication.modes.supported', ', '.join(payments))
+            else:
+                print("*** Payments available: {}".format(self.payment_available))
+        elif isinstance(payments, str):
+            # check if the mode is available
+            if payments in self.payment_available:
+                return self.setProperty('authentication.modes.supported', payments)
+            else:
+                print("*** Payments available: {}".format(self.payment_available))
+                return False
+        else:
+            print("*** You must provide a sting, a list or a set.")
             return False
