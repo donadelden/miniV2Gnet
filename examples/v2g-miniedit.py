@@ -32,7 +32,7 @@ if sys.version_info[0] == 2:
                           Checkbutton, Menu, Toplevel, Button, BitmapImage,
                           PhotoImage, Canvas, Scrollbar, Wm, TclError,
                           StringVar, IntVar, E, W, EW, NW, Y, VERTICAL, SOLID,
-                          CENTER, RIGHT, LEFT, BOTH, TRUE, FALSE )
+                          CENTER, RIGHT, LEFT, BOTH, TRUE, FALSE, END, Listbox )
     from ttk import Notebook
     from tkMessageBox import showerror
     import tkFont
@@ -43,7 +43,7 @@ else:
                           Checkbutton, Menu, Toplevel, Button, BitmapImage,
                           PhotoImage, Canvas, Scrollbar, Wm, TclError,
                           StringVar, IntVar, E, W, EW, NW, Y, VERTICAL, SOLID,
-                          CENTER, RIGHT, LEFT, BOTH, TRUE, FALSE )
+                          CENTER, RIGHT, LEFT, BOTH, TRUE, FALSE, END, Listbox )
     from tkinter.ttk import Notebook
     from tkinter.messagebox import showerror
     from tkinter import font as tkFont
@@ -564,7 +564,7 @@ class HostDialog(CustomDialog):
     def body(self, master):
         n = self.bodyHelper(master)
 
-        ### TAB 4 - Integration
+        ### TAB 1 - Integration
         # Field for CPU
         Label(self.propFrame, text="Amount CPU:").grid(row=3, sticky=E)
         self.cpuEntry = Entry(self.propFrame)
@@ -599,7 +599,7 @@ class HostDialog(CustomDialog):
     def addInterface( self ):
         self.tableFrame.addRow()
 
-    def apply(self):
+    def applyHelper(self):
         externalInterfaces = []
         for row in range(self.tableFrame.rows):
             if (len(self.tableFrame.get(row, 0)) > 0 and
@@ -619,10 +619,7 @@ class HostDialog(CustomDialog):
                 else:
                     privateDirectories.append(self.mountTableFrame.get(row, 0))
 
-        results = {'cpu': self.cpuEntry.get(),
-                   'cores':self.coreEntry.get(),
-                   'sched':self.schedVar.get(),
-                   'hostname':self.hostnameEntry.get(),
+        results = {'hostname':self.hostnameEntry.get(),
                    'ip':self.ipEntry.get(),
                    'defaultRoute':self.routeEntry.get(),
                    'startCommand':self.startEntry.get(),
@@ -630,6 +627,15 @@ class HostDialog(CustomDialog):
                    'privateDirectory':privateDirectories,
                    'externalInterfaces':externalInterfaces,
                    'vlanInterfaces':vlanInterfaces}
+
+        return results
+
+    def apply(self):
+        results = self.applyHelper()
+        results.update({'sched':self.schedVar.get(),
+                        'cpu':self.cpuEntry.get(),
+                        'cores':self.coreEntry.get()})
+
         self.result = results
 
 class EVDialog(HostDialog):
@@ -646,13 +652,27 @@ class EVDialog(HostDialog):
 
         ### TAB 5
         # TODO: add useful fields
-        Label(self.evOptionsFrame, text="Interface:").grid(row=0, sticky=E)
-        self.hostnameEntry = Entry(self.evOptionsFrame)
-        self.hostnameEntry.grid(row=0, column=1)
-        if 'hostname' in self.prefValues:
-            self.hostnameEntry.insert(0, self.prefValues['hostname'])
+        Label(self.evOptionsFrame, text="Intf for charging (empty for default):").grid(row=0, sticky=E)
+        self.chargeIntfEntry = Entry(self.evOptionsFrame)
+        self.chargeIntfEntry.grid(row=0, column=1, sticky=E)
+        # Add defined interfaces
+        chargeIntf = []
+        if 'externalInterfaces' in self.prefValues:
+            chargeIntf = self.chargeIntfEntry.insert(0, self.prefValues['externalInterfaces'][0])
 
+        # Add supported charging modes (only single choice)
+        Label(self.evOptionsFrame, text="Charging mode:").grid(row=1, sticky=W)
+        self.listChargingModes = Listbox(self.evOptionsFrame, selectmode="single", exportselection=False)
+        self.listChargingModes.grid(row=2, sticky=E)
+        for m in EV.modes_available:
+            self.listChargingModes.insert(END, m)
+        self.listChargingModes.selection_set(0)
 
+    def apply(self):
+        results = self.applyHelper()
+        results['chargingMode'] = self.listChargingModes.get(self.listChargingModes.curselection()[0])
+
+        self.result = results
 
 class SEDialog(HostDialog):
 
@@ -668,11 +688,30 @@ class SEDialog(HostDialog):
 
         ### TAB 5
         # TODO: add useful fields
-        Label(self.seOptionsFrame, text="Interface:").grid(row=0, sticky=E)
-        self.hostnameEntry = Entry(self.seOptionsFrame)
-        self.hostnameEntry.grid(row=0, column=1)
-        if 'hostname' in self.prefValues:
-            self.hostnameEntry.insert(0, self.prefValues['hostname'])
+        Label(self.seOptionsFrame, text="Intf for charging (empty for default):").grid(row=0, sticky=E)
+        self.chargeIntfEntry = Entry(self.seOptionsFrame)
+        self.chargeIntfEntry.grid(row=0, column=1, sticky=E)
+        # Add defined interfaces
+        chargeIntf = []
+        if 'externalInterfaces' in self.prefValues:
+            chargeIntf = self.chargeIntfEntry.insert(0, self.prefValues['externalInterfaces'][0])
+
+        # Add supported charging modes (multiple choice is available)
+        Label(self.seOptionsFrame, text="Supported charging modes:").grid(row=1, sticky=W)
+        self.listChargingModes = Listbox(self.seOptionsFrame, selectmode="multiple", exportselection=False)
+        self.listChargingModes.grid(row=2, sticky=E)
+        for m in EV.modes_available:
+            self.listChargingModes.insert(END, m)
+        self.listChargingModes.selection_set(0, self.listChargingModes.size())
+
+    def apply(self):
+        results = self.applyHelper()
+        chargingModes = []
+        for i in self.listChargingModes.curselection():
+            chargingModes.append(self.listChargingModes.get(i))
+        results['chargingModes'] = chargingModes
+
+        self.result = results
 
 
 class SwitchDialog(CustomDialog):
@@ -1161,7 +1200,7 @@ class MiniEdit( Frame ):
 
         self.appPrefs={
             "ipBase": self.defaultIpBase,
-            "startCLI": "0",
+            "startCLI": "1", # set default value for CLI
             "terminalType": 'xterm',
             "switchType": 'ovs',
             "dpctl": '',
@@ -2779,7 +2818,6 @@ class MiniEdit( Frame ):
         self.master.wait_window(hostBox.top)
         if hostBox.result:
             newHostOpts = {'nodeNum':self.evOpts[name]['nodeNum']}
-            newHostOpts['sched'] = hostBox.result['sched']
             if len(hostBox.result['startCommand']) > 0:
                 newHostOpts['startCommand'] = hostBox.result['startCommand']
             if len(hostBox.result['stopCommand']) > 0:
@@ -2798,6 +2836,8 @@ class MiniEdit( Frame ):
                 newHostOpts['vlanInterfaces'] = hostBox.result['vlanInterfaces']
             if len(hostBox.result['privateDirectory']) > 0:
                 newHostOpts['privateDirectory'] = hostBox.result['privateDirectory']
+            if len(hostBox.result['chargingMode']) > 0:
+                newHostOpts['chargingMode'] = hostBox.result['chargingMode']
             self.evOpts[name] = newHostOpts
             info( 'New EV details for ' + name + ' = ' + str(newHostOpts), '\n' )
 
@@ -2817,7 +2857,6 @@ class MiniEdit( Frame ):
         self.master.wait_window(hostBox.top)
         if hostBox.result:
             newHostOpts = {'nodeNum':self.seOpts[name]['nodeNum']}
-            newHostOpts['sched'] = hostBox.result['sched']
             if len(hostBox.result['startCommand']) > 0:
                 newHostOpts['startCommand'] = hostBox.result['startCommand']
             if len(hostBox.result['stopCommand']) > 0:
@@ -2836,6 +2875,8 @@ class MiniEdit( Frame ):
                 newHostOpts['vlanInterfaces'] = hostBox.result['vlanInterfaces']
             if len(hostBox.result['privateDirectory']) > 0:
                 newHostOpts['privateDirectory'] = hostBox.result['privateDirectory']
+            if len(hostBox.result['chargingModes']) > 0:
+                newHostOpts['chargingModes'] = hostBox.result['chargingModes']
             self.seOpts[name] = newHostOpts
             info( 'New SE details for ' + name + ' = ' + str(newHostOpts), '\n' )
 
@@ -3188,10 +3229,15 @@ class MiniEdit( Frame ):
                 else:
                     hostCls=EV
                 debug( hostCls, '\n' )
+                # TODO: passare i chargingMode in qualche modo
+                chargingMode=None
+                if 'chargingMode' in opts and len(opts['chargingMode']) > 0:
+                    chargingMode = opts['chargingMode']
                 newEV = net.addHost( name,
                                        cls=hostCls,
                                        ip=ip,
-                                       defaultRoute=defaultRoute
+                                       defaultRoute=defaultRoute,
+                                       chargingMode=chargingMode
                                       )
 
                 # Attach external interfaces
@@ -3225,10 +3271,16 @@ class MiniEdit( Frame ):
                 else:
                     hostCls=SE
                 debug( hostCls, '\n' )
+                # TODO: passare i chargingModes in qualche modo
+                chargingModes=None
+                if 'chargingModes' in opts and len(opts['chargingModes']) > 0:
+                    chargingModes = opts['chargingModes']
+
                 newSE = net.addHost( name,
                                        cls=hostCls,
                                        ip=ip,
-                                       defaultRoute=defaultRoute
+                                       defaultRoute=defaultRoute,
+                                       chargingModes=chargingModes
                                       )
 
                 # Attach external interfaces
@@ -3766,7 +3818,7 @@ class MiniEdit( Frame ):
             # TODO: find a better way to identify ev/se since the name can be changed
             if 'ev' in host.name:
                 name = host.name
-                self.evOpts[name] = {'sched': 'EV'}
+                self.evOpts[name] = {'sched':'host'} # scheduler, better to leave it as default for now
                 self.evOpts[name]['nodeNum'] = self.evCount
                 self.evOpts[name]['hostname'] = name
                 self.evOpts[name]['ip'] = host.IP()
@@ -3779,7 +3831,7 @@ class MiniEdit( Frame ):
 
             elif 'se' in host.name:
                 name = host.name
-                self.seOpts[name] = {'sched': 'SE'}
+                self.seOpts[name] = {'sched':'host'} # scheduler, better to leave it as default for now
                 self.seOpts[name]['nodeNum'] = self.seCount
                 self.seOpts[name]['hostname'] = name
                 self.seOpts[name]['ip'] = host.IP()
