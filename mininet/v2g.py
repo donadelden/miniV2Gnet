@@ -25,7 +25,9 @@ class Electric(Node):
 
     exi_codecs = ["exificent", "open_exi"]
 
-    logging = {"hex":"exi.messages.showhex", "xml":"exi.messages.showxml", "signature":"signature.verification.showlog"}
+    logging = {"hex": "exi.messages.showhex",
+               "xml": "exi.messages.showxml",
+               "signature": "signature.verification.showlog"}
 
     def __init__(self, name, path=None, **kwargs):
         # double check if java is available (it is needed for RiseV2G)
@@ -72,6 +74,8 @@ class Electric(Node):
         """Sets the loggings levels on the .properties file. It sets to True the one provided into loggingLevels.
         :param loggingLevels: set to True the logs included, False otherwise. """
         log = True
+        if isinstance(loggingLevels, str):
+            loggingLevels = [loggingLevels]
         if all(m in Electric.logging.keys() for m in loggingLevels):
             for k in Electric.logging.keys():
                 if k in loggingLevels:
@@ -155,7 +159,8 @@ class EV(Electric):
     necessary to be able to start the communication from its
     EV Communication Controller (EVCC) with a SECC to require charging service """
 
-    def __init__(self, name, path=None, chargingMode=None, exi=None, logging=None, **kwargs):
+    def __init__(self, name, path=None, chargingMode=None, exi=None, logging=None, sessionId=None, voltageAccuracy=None,
+                 **kwargs):
         self.name = str(name)
         Electric.__init__(self, self.name, path, **kwargs)
 
@@ -175,6 +180,10 @@ class EV(Electric):
             self.setExiCodec(exiCodec=exi)
         if logging is not None:
             self.setLoggingLevels(loggingLevels=logging)
+        if sessionId is not None:
+            self.setSessionId(id=sessionId)
+        if voltageAccuracy is not None:
+            self.setVoltageAccuracy(acc=voltageAccuracy)
 
     def charge(self, in_xterm=False, intf=None):
         """Starting the charging process.
@@ -208,14 +217,50 @@ class EV(Electric):
 
         if isinstance(req, str):
             # check if the mode is available
-            if req in  Electric.modes_available:
+            if req in Electric.modes_available:
                 return self.setProperty('energy.transfermode.requested', req)
             else:
                 print("*** Modes available: {}".format( Electric.modes_available))
                 return False
         else:
-            print("*** You must provide a sting, a list or a set.")
+            print("*** You must provide a sting.")
             return False
+
+    def setSessionId(self, id='00'):
+        """ Set the session id
+        :param id: the session id
+        """
+        try:
+            val = int(id)
+            if 10 > val >= 0:
+                return self.setProperty('session.id', "0"+str(val))
+            elif val >= 0:
+                return self.setProperty('session.id', str(val))
+            else:
+                print("*** You must provide a positive number.")
+                return False
+        except ValueError:
+            print("*** You must provide a number.")
+            return False
+
+    def setVoltageAccuracy(self, acc=5):
+        """ Set the voltage accuracy value
+        :param acc: accuracy value. Default is 5
+        """
+        try:
+            val = int(acc)
+            if val > 0:
+                return self.setProperty('voltage.accuracy', str(val))
+            else:
+                print("*** You must provide a positive number.")
+                return False
+        except ValueError:
+            print("*** You must provide a number.")
+            return False
+
+    # TODO: tls, authentication.mod, evcc controller class, contract.certificate.update.timespan to be added later on
+
+
 
 
 class SE(Electric):
@@ -332,13 +377,20 @@ class SE(Electric):
 
     def setChargingFree(self, free=True):
         """ Set if the nergy transfer is free or not
-        :param free: charging type (True for free charging, False otherwise)
+        :param free: charging type (True or 'true' or '1' for free charging, False 'false' or '0' otherwise)
         """
-
-        if free:
-            return self.setProperty('charging.free', 'true')
-        else:
-            return self.setProperty('charging.free', 'false')
+        if isinstance(free, str) or isinstance(free, int):
+            if str(free) == 'true' or str(free) == '1' or int(free) == 1:
+                return self.setProperty('charging.free', 'true')
+            else:
+                return self.setProperty('charging.free', 'false')
+        elif isinstance(free, bool):
+            if free:
+                return self.setProperty('charging.free', 'true')
+            else:
+                return self.setProperty('charging.free', 'false')
+        print("*** Problem on setting charging free.")
+        return False
 
     def setAuthOption(self, auth):
         """ Set auth methods
@@ -361,3 +413,5 @@ class SE(Electric):
         else:
             print("*** You must provide a string, a list or a set.")
             return False
+
+        # TODO: environment.private, implementation classes to be added later on
