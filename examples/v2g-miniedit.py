@@ -660,17 +660,29 @@ class EVDialog(HostDialog):
         if 'externalInterfaces' in self.prefValues:
             chargeIntf = self.chargeIntfEntry.insert(0, self.prefValues['externalInterfaces'][0])
 
-        #exi codec
+        # exi codec
         Label(self.evOptionsFrame, text="EXI codec:").grid(row=1, sticky=E)
         self.exiCodec = StringVar(self.evOptionsFrame)
         self.listExiCodecs = OptionMenu(self.evOptionsFrame, self.exiCodec, *EV.exi_codecs)
         self.listExiCodecs.grid(row=1, column=1, sticky=W)
         self.exiCodec.set(EV.exi_codecs[0])
 
-        # TODO: add other stuffs (session.id, voltage.accuracy)
+        # voltage accuracy
+        Label(self.evOptionsFrame, text="Voltage accuracy:").grid(row=2, sticky=E)
+        self.voltageAcc = StringVar(self.evOptionsFrame)
+        self.voltageAccEntry = Entry(self.evOptionsFrame, textvariable=self.voltageAcc)
+        self.voltageAccEntry.grid(row=2, column=1, sticky=E)
+        self.voltageAcc.set(self.prefValues['voltageAcc'])
 
-        # listbox row to easly add other rows before
-        listbox_row = 3
+        # session id
+        Label(self.evOptionsFrame, text="Session ID:").grid(row=3, sticky=E)
+        self.sessionId = StringVar(self.evOptionsFrame)
+        self.sessionIdEntry = Entry(self.evOptionsFrame, textvariable=self.sessionId)
+        self.sessionIdEntry.grid(row=3, column=1, sticky=E)
+        self.sessionId.set(self.prefValues['sessionId'])
+
+        # listbox row to easily add other rows before
+        listbox_row = 5
         # Add supported charging modes (only single choice)
         Label(self.evOptionsFrame, text="Charging mode:").grid(row=listbox_row, sticky=S)
         self.listChargingModes = Listbox(self.evOptionsFrame, selectmode="single", exportselection=False)
@@ -695,6 +707,8 @@ class EVDialog(HostDialog):
             loggingLevels.append(self.listLoggingLevels.get(i))
         results['loggingLevels'] = loggingLevels
         results['exiCodec'] = self.exiCodec.get()
+        results['voltageAcc'] = self.voltageAcc.get()
+        results['sessionId'] = self.sessionId.get()
 
         self.result = results
 
@@ -1283,7 +1297,12 @@ class MiniEdit( Frame ):
         }
 
         self.sePrefs={
-                     'freeCharging': "0"
+            'freeCharging': "0"
+        }
+
+        self.evPrefs={
+            'voltageAcc': "5",
+            'sessionId': "00"
         }
 
 
@@ -2888,6 +2907,7 @@ class MiniEdit( Frame ):
             return
 
         prefDefaults = self.evOpts[name]
+        prefDefaults.update(self.evPrefs)
         hostBox = EVDialog(self, title='EV Details', prefDefaults=prefDefaults)
         self.master.wait_window(hostBox.top)
         if hostBox.result:
@@ -2916,6 +2936,10 @@ class MiniEdit( Frame ):
                 newHostOpts['loggingLevels'] = hostBox.result['loggingLevels']
             if len(hostBox.result['exiCodec']) > 0:
                 newHostOpts['exiCodec'] = hostBox.result['exiCodec']
+            if len(hostBox.result['voltageAcc']) > 0:
+                newHostOpts['voltageAcc'] = hostBox.result['voltageAcc']
+            if len(hostBox.result['sessionId']) > 0:
+                newHostOpts['sessionId'] = hostBox.result['sessionId']
             self.evOpts[name] = newHostOpts
             info( 'New EV details for ' + name + ' = ' + str(newHostOpts), '\n' )
 
@@ -3325,6 +3349,10 @@ class MiniEdit( Frame ):
                     loggingLevels = opts['loggingLevels']
                 if 'exiCodec' in opts and len(opts['exiCodec']) > 0:
                     exiCodec = opts['exiCodec']
+                if 'voltageAcc' in opts and len(opts['voltageAcc']) > 0:
+                    voltageAcc = opts['voltageAcc']
+                if 'sessionId' in opts and len(opts['sessionId']) > 0:
+                    sessionId = opts['sessionId']
 
                 newEV = net.addHost( name,
                                        cls=hostCls,
@@ -3332,7 +3360,9 @@ class MiniEdit( Frame ):
                                        defaultRoute=defaultRoute,
                                        chargingMode=chargingMode,
                                        logging=loggingLevels,
-                                       exi = exiCodec
+                                       exi=exiCodec,
+                                       sessionId=sessionId,
+                                       voltageAccuracy=voltageAcc
                                       )
 
                 # Attach external interfaces
