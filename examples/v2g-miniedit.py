@@ -669,10 +669,10 @@ class EVDialog(HostDialog):
 
         # voltage accuracy
         Label(self.evOptionsFrame, text="Voltage accuracy:").grid(row=2, sticky=E)
-        self.voltageAcc = StringVar(self.evOptionsFrame)
-        self.voltageAccEntry = Entry(self.evOptionsFrame, textvariable=self.voltageAcc)
-        self.voltageAccEntry.grid(row=2, column=1, sticky=E)
-        self.voltageAcc.set(self.prefValues['voltageAcc'])
+        self.voltageAccuracy = StringVar(self.evOptionsFrame)
+        self.voltageAccuracyEntry = Entry(self.evOptionsFrame, textvariable=self.voltageAccuracy)
+        self.voltageAccuracyEntry.grid(row=2, column=1, sticky=E)
+        self.voltageAccuracy.set(self.prefValues['voltageAccuracy'])
 
         # session id
         Label(self.evOptionsFrame, text="Session ID:").grid(row=3, sticky=E)
@@ -707,7 +707,7 @@ class EVDialog(HostDialog):
             loggingLevels.append(self.listLoggingLevels.get(i))
         results['loggingLevels'] = loggingLevels
         results['exiCodec'] = self.exiCodec.get()
-        results['voltageAcc'] = self.voltageAcc.get()
+        results['voltageAccuracy'] = self.voltageAccuracy.get()
         results['sessionId'] = self.sessionId.get()
 
         self.result = results
@@ -1301,7 +1301,7 @@ class MiniEdit( Frame ):
         }
 
         self.evPrefs={
-            'voltageAcc': "5",
+            'voltageAccuracy': "5",
             'sessionId': "00"
         }
 
@@ -2156,8 +2156,24 @@ class MiniEdit( Frame ):
                         ipBaseNum, prefixLen = netParse(self.appPrefs['ipBase'])
                         ip = ipAdd(i=nodeNum, prefixLen=prefixLen, ipBaseNum=ipBaseNum)
 
+                    # get evSpecificParameters
+                    evSpecificParameters = ""
+                    if 'chargingMode' in opts and len(opts['chargingMode']) > 0:
+                        evSpecificParameters += "chargingMode=\"" + str(opts['chargingMode']) + "\", "
+                    if 'loggingLevels' in opts and len(opts['loggingLevels']) > 0:
+                        evSpecificParameters += "loggingLevels=" + str(opts['loggingLevels']) + ", "
+                    if 'exiCodec' in opts and len(opts['exiCodec']) > 0:
+                        evSpecificParameters += "exiCodec=\"" + str(opts['exiCodec']) + "\", "
+                    if 'voltageAccuracy' in opts and len(opts['voltageAccuracy']) > 0:
+                        evSpecificParameters += "voltageAccuracy=\"" + str(opts['voltageAccuracy']) + "\", "
+                    if 'sessionId' in opts and len(opts['sessionId']) > 0:
+                        evSpecificParameters += "sessionId=\"" + str(opts['sessionId']) + "\", "
+                    if len(evSpecificParameters) > 2:
+                        # remove last comma, add comma to the start
+                        evSpecificParameters = ", " + evSpecificParameters[:-2]
+
                     f.write("    " + name + " = net.addHost('" + name + "', cls=EV, ip='" + ip + "', defaultRoute=" +
-                            defaultRoute + ")\n")
+                            defaultRoute + evSpecificParameters + ")\n")
 
                     if 'externalInterfaces' in opts:
                         for extInterface in opts['externalInterfaces']:
@@ -2177,9 +2193,26 @@ class MiniEdit( Frame ):
                         nodeNum = self.seOpts[name]['nodeNum']
                         ipBaseNum, prefixLen = netParse(self.appPrefs['ipBase'])
                         ip = ipAdd(i=nodeNum, prefixLen=prefixLen, ipBaseNum=ipBaseNum)
+                        
+                    # get seSpecificParameters
+                    seSpecificParameters = ""
+                    if 'chargingModes' in opts and len(opts['chargingModes']) > 0:
+                        seSpecificParameters += "chargingModes=" + str(opts['chargingModes']) + ", "
+                    if 'loggingLevels' in opts and len(opts['loggingLevels']) > 0:
+                        seSpecificParameters += "loggingLevels=" + str(opts['loggingLevels']) + ", "
+                    if 'authOptions' in opts and len(opts['authOptions']) > 0:
+                        seSpecificParameters += "authOptions=" + str(opts['authOptions']) + ", "
+                    if 'chargingFree' in opts and len(opts['chargingFree']) > 0:
+                        seSpecificParameters += "chargingFree=\"" + str(opts['chargingFree']) + "\", "
+                    if 'exiCodec' in opts and len(opts['exiCodec']) > 0:
+                        seSpecificParameters += "exiCodec=\"" + str(opts['exiCodec']) + "\", "
+                    if len(seSpecificParameters) > 2:
+                        # remove last comma, add comma to the start
+                        seSpecificParameters = ", " + seSpecificParameters[:-2]
 
                     f.write("    " + name + " = net.addHost('" + name + "', cls=SE, ip='" + ip + "', defaultRoute=" +
-                            defaultRoute + ")\n")
+                            defaultRoute + seSpecificParameters + ")\n")
+
                     if 'externalInterfaces' in opts:
                         for extInterface in opts['externalInterfaces']:
                             f.write("    Intf( '" + extInterface + "', node=" + name + " )\n")
@@ -2930,14 +2963,15 @@ class MiniEdit( Frame ):
                 newHostOpts['vlanInterfaces'] = hostBox.result['vlanInterfaces']
             if len(hostBox.result['privateDirectory']) > 0:
                 newHostOpts['privateDirectory'] = hostBox.result['privateDirectory']
+            # ev specific
             if len(hostBox.result['chargingMode']) > 0:
                 newHostOpts['chargingMode'] = hostBox.result['chargingMode']
             if len(hostBox.result['loggingLevels']) > 0:
                 newHostOpts['loggingLevels'] = hostBox.result['loggingLevels']
             if len(hostBox.result['exiCodec']) > 0:
                 newHostOpts['exiCodec'] = hostBox.result['exiCodec']
-            if len(hostBox.result['voltageAcc']) > 0:
-                newHostOpts['voltageAcc'] = hostBox.result['voltageAcc']
+            if len(hostBox.result['voltageAccuracy']) > 0:
+                newHostOpts['voltageAccuracy'] = hostBox.result['voltageAccuracy']
             if len(hostBox.result['sessionId']) > 0:
                 newHostOpts['sessionId'] = hostBox.result['sessionId']
             self.evOpts[name] = newHostOpts
@@ -2978,6 +3012,7 @@ class MiniEdit( Frame ):
                 newHostOpts['vlanInterfaces'] = hostBox.result['vlanInterfaces']
             if len(hostBox.result['privateDirectory']) > 0:
                 newHostOpts['privateDirectory'] = hostBox.result['privateDirectory']
+            # se specific
             if len(hostBox.result['chargingModes']) > 0:
                 newHostOpts['chargingModes'] = hostBox.result['chargingModes']
             if len(hostBox.result['loggingLevels']) > 0:
@@ -3340,7 +3375,6 @@ class MiniEdit( Frame ):
                 else:
                     hostCls=EV
                 debug( hostCls, '\n' )
-                # TODO: passare i chargingMode in qualche modo
                 chargingMode=None
                 if 'chargingMode' in opts and len(opts['chargingMode']) > 0:
                     chargingMode = opts['chargingMode']
@@ -3349,8 +3383,8 @@ class MiniEdit( Frame ):
                     loggingLevels = opts['loggingLevels']
                 if 'exiCodec' in opts and len(opts['exiCodec']) > 0:
                     exiCodec = opts['exiCodec']
-                if 'voltageAcc' in opts and len(opts['voltageAcc']) > 0:
-                    voltageAcc = opts['voltageAcc']
+                if 'voltageAccuracy' in opts and len(opts['voltageAccuracy']) > 0:
+                    voltageAccuracy = opts['voltageAccuracy']
                 if 'sessionId' in opts and len(opts['sessionId']) > 0:
                     sessionId = opts['sessionId']
 
@@ -3359,10 +3393,10 @@ class MiniEdit( Frame ):
                                        ip=ip,
                                        defaultRoute=defaultRoute,
                                        chargingMode=chargingMode,
-                                       logging=loggingLevels,
-                                       exi=exiCodec,
+                                       loggingLevels=loggingLevels,
+                                       exiCodec=exiCodec,
                                        sessionId=sessionId,
-                                       voltageAccuracy=voltageAcc
+                                       voltageAccuracy=voltageAccuracy
                                       )
 
                 # Attach external interfaces
@@ -3396,7 +3430,6 @@ class MiniEdit( Frame ):
                 else:
                     hostCls=SE
                 debug( hostCls, '\n' )
-                # TODO: passare i chargingModes in qualche modo
                 chargingModes=None
                 if 'chargingModes' in opts and len(opts['chargingModes']) > 0:
                     chargingModes = opts['chargingModes']
@@ -3418,10 +3451,10 @@ class MiniEdit( Frame ):
                                        ip=ip,
                                        defaultRoute=defaultRoute,
                                        chargingModes=chargingModes,
-                                       logging=loggingLevels,
-                                       auth=authOptions,
-                                       freeCharge=chargingFree,
-                                       exi=exiCodec
+                                       loggingLevels=loggingLevels,
+                                       authOptions=authOptions,
+                                       chargingFree=chargingFree,
+                                       exiCodec=exiCodec
                                       )
 
                 # Attach external interfaces
