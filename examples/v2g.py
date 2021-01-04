@@ -332,13 +332,20 @@ class SE(Electric):
 
     def setChargingFree(self, free=True):
         """ Set if the nergy transfer is free or not
-        :param free: charging type (True for free charging, False otherwise)
+        :param free: charging type (True or 'true' or '1' for free charging, False 'false' or '0' otherwise)
         """
-
-        if free:
-            return self.setProperty('charging.free', 'true')
-        else:
-            return self.setProperty('charging.free', 'false')
+        if isinstance(free, str) or isinstance(free, int):
+            if str(free) == 'true' or str(free) == '1' or int(free) == 1:
+                return self.setProperty('charging.free', 'true')
+            else:
+                return self.setProperty('charging.free', 'false')
+        elif isinstance(free, bool):
+            if free:
+                return self.setProperty('charging.free', 'true')
+            else:
+                return self.setProperty('charging.free', 'false')
+        print("*** Problem on setting charging free.")
+        return False
 
     def setAuthOption(self, auth):
         """ Set auth methods

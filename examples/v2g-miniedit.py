@@ -31,7 +31,7 @@ if sys.version_info[0] == 2:
     from Tkinter import ( Frame, Label, LabelFrame, Entry, OptionMenu,
                           Checkbutton, Menu, Toplevel, Button, BitmapImage,
                           PhotoImage, Canvas, Scrollbar, Wm, TclError,
-                          StringVar, IntVar, E, W, EW, NW, Y, VERTICAL, SOLID,
+                          StringVar, IntVar, E, W, EW, NW, Y, S, VERTICAL, SOLID,
                           CENTER, RIGHT, LEFT, BOTH, TRUE, FALSE, END, Listbox )
     from ttk import Notebook
     from tkMessageBox import showerror
@@ -651,8 +651,8 @@ class EVDialog(HostDialog):
         n.pack()
 
         ### TAB 5
-        # TODO: add useful fields
-        Label(self.evOptionsFrame, text="Intf for charging (empty for default):").grid(row=0, sticky=E)
+        Label(self.evOptionsFrame, text="Intf for charging:").grid(row=0, sticky=E)
+        Label(self.evOptionsFrame, text="(empty for default)").grid(row=0, column=2, sticky=W)
         self.chargeIntfEntry = Entry(self.evOptionsFrame)
         self.chargeIntfEntry.grid(row=0, column=1, sticky=E)
         # Add defined interfaces
@@ -660,17 +660,41 @@ class EVDialog(HostDialog):
         if 'externalInterfaces' in self.prefValues:
             chargeIntf = self.chargeIntfEntry.insert(0, self.prefValues['externalInterfaces'][0])
 
+        #exi codec
+        Label(self.evOptionsFrame, text="EXI codec:").grid(row=1, sticky=E)
+        self.exiCodec = StringVar(self.evOptionsFrame)
+        self.listExiCodecs = OptionMenu(self.evOptionsFrame, self.exiCodec, *EV.exi_codecs)
+        self.listExiCodecs.grid(row=1, column=1, sticky=W)
+        self.exiCodec.set(EV.exi_codecs[0])
+
+        # TODO: add other stuffs (session.id, voltage.accuracy)
+
+        # listbox row to easly add other rows before
+        listbox_row = 3
         # Add supported charging modes (only single choice)
-        Label(self.evOptionsFrame, text="Charging mode:").grid(row=1, sticky=W)
+        Label(self.evOptionsFrame, text="Charging mode:").grid(row=listbox_row, sticky=S)
         self.listChargingModes = Listbox(self.evOptionsFrame, selectmode="single", exportselection=False)
-        self.listChargingModes.grid(row=2, sticky=E)
+        self.listChargingModes.grid(row=listbox_row+1, sticky=E)
         for m in EV.modes_available:
             self.listChargingModes.insert(END, m)
         self.listChargingModes.selection_set(0)
 
+        # Set logging levels
+        Label(self.evOptionsFrame, text="Logging levels:").grid(row=listbox_row, column=1, sticky=S)
+        self.listLoggingLevels = Listbox(self.evOptionsFrame, selectmode="multiple", exportselection=False)
+        self.listLoggingLevels.grid(row=listbox_row+1, column=1, sticky=E)
+        for l in EV.logging:
+            self.listLoggingLevels.insert(END, l)
+        # self.listLoggingLevels.selection_set(0)  # default: no extra logging
+
     def apply(self):
         results = self.applyHelper()
         results['chargingMode'] = self.listChargingModes.get(self.listChargingModes.curselection()[0])
+        loggingLevels = []
+        for i in self.listLoggingLevels.curselection():
+            loggingLevels.append(self.listLoggingLevels.get(i))
+        results['loggingLevels'] = loggingLevels
+        results['exiCodec'] = self.exiCodec.get()
 
         self.result = results
 
@@ -687,8 +711,8 @@ class SEDialog(HostDialog):
         n.pack()
 
         ### TAB 5
-        # TODO: add useful fields
-        Label(self.seOptionsFrame, text="Intf for charging (empty for default):").grid(row=0, sticky=E)
+        Label(self.seOptionsFrame, text="Intf for charging:").grid(row=0, sticky=E)
+        Label(self.seOptionsFrame, text="(empty for default)").grid(row=0, column=2, sticky=W)
         self.chargeIntfEntry = Entry(self.seOptionsFrame)
         self.chargeIntfEntry.grid(row=0, column=1, sticky=E)
         # Add defined interfaces
@@ -696,13 +720,48 @@ class SEDialog(HostDialog):
         if 'externalInterfaces' in self.prefValues:
             chargeIntf = self.chargeIntfEntry.insert(0, self.prefValues['externalInterfaces'][0])
 
+        # Set charging free
+        Label(self.seOptionsFrame, text="Free charging:").grid(row=1, sticky=E)
+        self.freeCharging = StringVar(self.seOptionsFrame)
+        self.freeChargingButton = Checkbutton(self.seOptionsFrame, variable=self.freeCharging, onvalue='1', offvalue='0')
+        self.freeChargingButton.grid(row=1, column=1, sticky=W)
+        if self.prefValues['freeCharging'] == '0':
+            self.freeChargingButton.deselect()
+        else:
+            self.freeChargingButton.select()
+
+        #exi codec
+        Label(self.seOptionsFrame, text="EXI codec:").grid(row=2, sticky=E)
+        self.exiCodec = StringVar(self.seOptionsFrame)
+        self.listExiCodecs = OptionMenu(self.seOptionsFrame, self.exiCodec, *EV.exi_codecs)
+        self.listExiCodecs.grid(row=2, column=1, sticky=W)
+        self.exiCodec.set(EV.exi_codecs[0])
+
+        # listbox row to easly add other rows before
+        listbox_row = 4
         # Add supported charging modes (multiple choice is available)
-        Label(self.seOptionsFrame, text="Supported charging modes:").grid(row=1, sticky=W)
+        Label(self.seOptionsFrame, text="Supported charging modes:").grid(row=listbox_row, sticky=S)
         self.listChargingModes = Listbox(self.seOptionsFrame, selectmode="multiple", exportselection=False)
-        self.listChargingModes.grid(row=2, sticky=E)
+        self.listChargingModes.grid(row=listbox_row+1, sticky=E)
         for m in EV.modes_available:
             self.listChargingModes.insert(END, m)
         self.listChargingModes.selection_set(0, self.listChargingModes.size())
+
+        # Set logging levels
+        Label(self.seOptionsFrame, text="Logging levels:").grid(row=listbox_row, column=1, sticky=S)
+        self.listLoggingLevels = Listbox(self.seOptionsFrame, selectmode="multiple", exportselection=False)
+        self.listLoggingLevels.grid(row=listbox_row+1, column=1, sticky=E)
+        for l in EV.logging:
+            self.listLoggingLevels.insert(END, l)
+        # self.listLoggingLevels.selection_set(0)  # default: no extra logging
+
+        # Set auth options
+        Label(self.seOptionsFrame, text="Auth options:").grid(row=listbox_row, column=2, sticky=S)
+        self.listAuthOptions = Listbox(self.seOptionsFrame, selectmode="multiple", exportselection=False)
+        self.listAuthOptions.grid(row=listbox_row+1, column=2, sticky=E)
+        for a in EV.auth_available:
+            self.listAuthOptions.insert(END, a)
+        self.listAuthOptions.selection_set(0, END)
 
     def apply(self):
         results = self.applyHelper()
@@ -710,6 +769,16 @@ class SEDialog(HostDialog):
         for i in self.listChargingModes.curselection():
             chargingModes.append(self.listChargingModes.get(i))
         results['chargingModes'] = chargingModes
+        loggingLevels = []
+        for i in self.listLoggingLevels.curselection():
+            loggingLevels.append(self.listLoggingLevels.get(i))
+        results['loggingLevels'] = loggingLevels
+        authOptions = []
+        for i in self.listAuthOptions.curselection():
+            authOptions.append(self.listAuthOptions.get(i))
+        results['authOptions'] = authOptions
+        results['chargingFree'] = self.freeCharging.get()
+        results['exiCodec'] = self.exiCodec.get()
 
         self.result = results
 
@@ -1212,6 +1281,11 @@ class MiniEdit( Frame ):
                                 'ovsOf13':'0'}
 
         }
+
+        self.sePrefs={
+                     'freeCharging': "0"
+        }
+
 
 
         Frame.__init__( self, parent )
@@ -2838,6 +2912,10 @@ class MiniEdit( Frame ):
                 newHostOpts['privateDirectory'] = hostBox.result['privateDirectory']
             if len(hostBox.result['chargingMode']) > 0:
                 newHostOpts['chargingMode'] = hostBox.result['chargingMode']
+            if len(hostBox.result['loggingLevels']) > 0:
+                newHostOpts['loggingLevels'] = hostBox.result['loggingLevels']
+            if len(hostBox.result['exiCodec']) > 0:
+                newHostOpts['exiCodec'] = hostBox.result['exiCodec']
             self.evOpts[name] = newHostOpts
             info( 'New EV details for ' + name + ' = ' + str(newHostOpts), '\n' )
 
@@ -2853,6 +2931,7 @@ class MiniEdit( Frame ):
             return
 
         prefDefaults = self.seOpts[name]
+        prefDefaults.update(self.sePrefs)
         hostBox = SEDialog(self, title='SE Details', prefDefaults=prefDefaults)
         self.master.wait_window(hostBox.top)
         if hostBox.result:
@@ -2877,6 +2956,14 @@ class MiniEdit( Frame ):
                 newHostOpts['privateDirectory'] = hostBox.result['privateDirectory']
             if len(hostBox.result['chargingModes']) > 0:
                 newHostOpts['chargingModes'] = hostBox.result['chargingModes']
+            if len(hostBox.result['loggingLevels']) > 0:
+                newHostOpts['loggingLevels'] = hostBox.result['loggingLevels']
+            if len(hostBox.result['authOptions']) > 0:
+                newHostOpts['authOptions'] = hostBox.result['authOptions']
+            if len(hostBox.result['chargingFree']) > 0:
+                newHostOpts['chargingFree'] = hostBox.result['chargingFree']
+            if len(hostBox.result['exiCodec']) > 0:
+                newHostOpts['exiCodec'] = hostBox.result['exiCodec']
             self.seOpts[name] = newHostOpts
             info( 'New SE details for ' + name + ' = ' + str(newHostOpts), '\n' )
 
@@ -3233,11 +3320,19 @@ class MiniEdit( Frame ):
                 chargingMode=None
                 if 'chargingMode' in opts and len(opts['chargingMode']) > 0:
                     chargingMode = opts['chargingMode']
+                loggingLevels=None
+                if 'loggingLevels' in opts and len(opts['loggingLevels']) > 0:
+                    loggingLevels = opts['loggingLevels']
+                if 'exiCodec' in opts and len(opts['exiCodec']) > 0:
+                    exiCodec = opts['exiCodec']
+
                 newEV = net.addHost( name,
                                        cls=hostCls,
                                        ip=ip,
                                        defaultRoute=defaultRoute,
-                                       chargingMode=chargingMode
+                                       chargingMode=chargingMode,
+                                       logging=loggingLevels,
+                                       exi = exiCodec
                                       )
 
                 # Attach external interfaces
@@ -3275,12 +3370,28 @@ class MiniEdit( Frame ):
                 chargingModes=None
                 if 'chargingModes' in opts and len(opts['chargingModes']) > 0:
                     chargingModes = opts['chargingModes']
+                loggingLevels=None
+                if 'loggingLevels' in opts and len(opts['loggingLevels']) > 0:
+                    loggingLevels = opts['loggingLevels']
+                authOptions=None
+                if 'authOptions' in opts and len(opts['authOptions']) > 0:
+                    authOptions = opts['authOptions']
+                chargingFree = None
+                if 'chargingFree' in opts and len(opts['chargingFree']) > 0:
+                    chargingFree = opts['chargingFree']
+                exiCodec = None
+                if 'exiCodec' in opts and len(opts['exiCodec']) > 0:
+                    exiCodec = opts['exiCodec']
 
                 newSE = net.addHost( name,
                                        cls=hostCls,
                                        ip=ip,
                                        defaultRoute=defaultRoute,
-                                       chargingModes=chargingModes
+                                       chargingModes=chargingModes,
+                                       logging=loggingLevels,
+                                       auth=authOptions,
+                                       freeCharge=chargingFree,
+                                       exi=exiCodec
                                       )
 
                 # Attach external interfaces
