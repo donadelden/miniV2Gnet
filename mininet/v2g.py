@@ -269,8 +269,8 @@ class SE(Electric):
     Supply Equipment Communication Controller (SECC)
     """
 
-    def __init__(self, name, path=None, chargingModes=None, exi=None, logging=None, auth=None,
-                 freeCharge=None, **kwargs):
+    def __init__(self, name, path=None, chargingModes=None, exiCodec=None, loggingLevels=None, authOptions=None,
+                 chargingFree=None, **kwargs):
         self.name = str(name)
         Electric.__init__(self, self.name, path, **kwargs)
 
@@ -286,17 +286,17 @@ class SE(Electric):
         if chargingModes is not None:
             self.setEnergyTransferModes(chargingModes)
         # setup exi codec
-        if exi is not None:
-            self.setExiCodec(exiCodec=exi)
+        if exiCodec is not None:
+            self.setExiCodec(exiCodec=exiCodec)
         # setup logging
-        if logging is not None:
-            self.setLoggingLevels(loggingLevels=logging)
+        if loggingLevels is not None:
+            self.setLoggingLevels(loggingLevels=loggingLevels)
         # setup payment/auth methods
-        if auth is not None:
-            self.setAuthOption(auth=auth)
+        if authOptions is not None:
+            self.setAuthOption(auth=authOptions)
         # setup free charge
-        if freeCharge is not None:
-            self.setChargingFree(free=freeCharge)
+        if chargingFree is not None:
+            self.setChargingFree(free=chargingFree)
 
 
     def startCharge(self, in_xterm=True, intf=None):
