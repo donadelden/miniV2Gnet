@@ -288,7 +288,7 @@ function v2g {
     if ! which java; then
         echo "Installing java..."
         if [ "$DIST" = "Ubuntu" ] || [ "$DIST" = "Debian" ]; then
-            $install openjdk-8-jre
+            $install default-jdk
         # Fedora, Oracle Linux, Red Hat Enterprise Linux, etc.
         elif [ "$DIST" = "Fedora" -o "$DIST" = "RedHatEnterpriseServer" ]; then
             $install java-1.8.0-openjdk
@@ -303,6 +303,8 @@ function v2g {
         echo "Installing xhost..."
         if [ "$DIST" = "Arch" ]; then
             $install xorg-xhost
+	elif [ "$DIST" = "Ubuntu" ] || [ "$DIST" = "Debian" ]; then
+	    $install x11-xserver-utils
         else
             echo "Please, Install xhost. It is required to run term.py."
         fi
