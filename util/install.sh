@@ -283,7 +283,7 @@ function v2g {
     # Copy jar files to local directory
     sudo mkdir -p /usr/share/.miniV2G/RiseV2G
     # TODO: alternative is to download from the internet the most updated version
-    sudo cp $MININET_DIR/miniV2G/util/RiseV2G/* /usr/share/.miniV2G/RiseV2G
+    sudo cp $MININET_DIR/mininet/util/RiseV2G/* /usr/share/.miniV2G/RiseV2G
 
     if ! which java; then
         echo "Installing java..."
