@@ -2111,6 +2111,7 @@ class MiniEdit( Frame ):
 
             f.write("\n")
             f.write("    info( '*** Add hosts, EVs and SEs\\n')\n")
+            ip_number = 1
             for widget in self.widgetToItem:
                 name = widget[ 'text' ]
                 tags = self.canvas.gettags( self.widgetToItem[ widget ] )
@@ -2125,7 +2126,8 @@ class MiniEdit( Frame ):
                     if 'ip' in opts and len(opts['ip']) > 0:
                         ip = opts['ip']
                     else:
-                        nodeNum = self.hostOpts[name]['nodeNum']
+                        nodeNum = ip_number  # self.hostOpts[name]['nodeNum']
+                        ip_number += 1
                         ipBaseNum, prefixLen = netParse( self.appPrefs['ipBase'] )
                         ip = ipAdd(i=nodeNum, prefixLen=prefixLen, ipBaseNum=ipBaseNum)
 
@@ -2152,7 +2154,8 @@ class MiniEdit( Frame ):
                     if 'ip' in opts and len(opts['ip']) > 0:
                         ip = opts['ip']
                     else:
-                        nodeNum = self.evOpts[name]['nodeNum']
+                        nodeNum = ip_number  # self.evOpts[name]['nodeNum']
+                        ip_number += 1
                         ipBaseNum, prefixLen = netParse(self.appPrefs['ipBase'])
                         ip = ipAdd(i=nodeNum, prefixLen=prefixLen, ipBaseNum=ipBaseNum)
 
@@ -2190,7 +2193,8 @@ class MiniEdit( Frame ):
                     if 'ip' in opts and len(opts['ip']) > 0:
                         ip = opts['ip']
                     else:
-                        nodeNum = self.seOpts[name]['nodeNum']
+                        nodeNum = ip_number  # self.seOpts[name]['nodeNum']
+                        ip_number += 1
                         ipBaseNum, prefixLen = netParse(self.appPrefs['ipBase'])
                         ip = ipAdd(i=nodeNum, prefixLen=prefixLen, ipBaseNum=ipBaseNum)
                         
@@ -2428,7 +2432,6 @@ class MiniEdit( Frame ):
             f.write("    setLogLevel( 'info' )\n")
             f.write("    myNetwork()\n")
             f.write("\n")
-
 
             f.close()
 
@@ -3234,6 +3237,7 @@ class MiniEdit( Frame ):
     def buildNodes( self, net):
         # Make nodes
         info( "Getting Hosts and Switches.\n" )
+        ip_number = 1
         for widget in self.widgetToItem:
             name = widget[ 'text' ]
             tags = self.canvas.gettags( self.widgetToItem[ widget ] )
@@ -3315,7 +3319,8 @@ class MiniEdit( Frame ):
                 if 'ip' in opts and len(opts['ip']) > 0:
                     ip = opts['ip']
                 else:
-                    nodeNum = self.hostOpts[name]['nodeNum']
+                    nodeNum = ip_number  # self.hostOpts[name]['nodeNum']
+                    ip_number += 1
                     ipBaseNum, prefixLen = netParse( self.appPrefs['ipBase'] )
                     ip = ipAdd(i=nodeNum, prefixLen=prefixLen, ipBaseNum=ipBaseNum)
 
@@ -3365,7 +3370,8 @@ class MiniEdit( Frame ):
                 if 'ip' in opts and len(opts['ip']) > 0:
                     ip = opts['ip']
                 else:
-                    nodeNum = self.evOpts[name]['nodeNum']
+                    nodeNum = ip_number  # self.evOpts[name]['nodeNum']
+                    ip_number += 1
                     ipBaseNum, prefixLen = netParse( self.appPrefs['ipBase'] )
                     ip = ipAdd(i=nodeNum, prefixLen=prefixLen, ipBaseNum=ipBaseNum)
 
@@ -3381,12 +3387,15 @@ class MiniEdit( Frame ):
                 loggingLevels=None
                 if 'loggingLevels' in opts and len(opts['loggingLevels']) > 0:
                     loggingLevels = opts['loggingLevels']
+                exiCodec = None
                 if 'exiCodec' in opts and len(opts['exiCodec']) > 0:
                     exiCodec = opts['exiCodec']
-                if 'voltageAccuracy' in opts and len(opts['voltageAccuracy']) > 0:
-                    voltageAccuracy = opts['voltageAccuracy']
+                sessionId = None
                 if 'sessionId' in opts and len(opts['sessionId']) > 0:
                     sessionId = opts['sessionId']
+                voltageAccuracy = None
+                if 'voltageAccuracy' in opts and len(opts['voltageAccuracy']) > 0:
+                    voltageAccuracy = opts['voltageAccuracy']
 
                 newEV = net.addHost( name,
                                        cls=hostCls,
@@ -3420,7 +3429,8 @@ class MiniEdit( Frame ):
                 if 'ip' in opts and len(opts['ip']) > 0:
                     ip = opts['ip']
                 else:
-                    nodeNum = self.seOpts[name]['nodeNum']
+                    nodeNum = ip_number  # self.seOpts[name]['nodeNum']
+                    ip_number += 1
                     ipBaseNum, prefixLen = netParse( self.appPrefs['ipBase'] )
                     ip = ipAdd(i=nodeNum, prefixLen=prefixLen, ipBaseNum=ipBaseNum)
 
