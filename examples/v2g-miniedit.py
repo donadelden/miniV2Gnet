@@ -1726,33 +1726,49 @@ class MiniEdit( Frame ):
             icon = self.findWidgetByName(hostname)
             icon.bind('<Button-3>', self.do_hostPopup )
 
-            # Load EVs
-            EVs = loadedTopology['EVs']
-            for EV in EVs:
-                nodeNum = EV['number']
-                hostname = 'ev' + nodeNum
-                if 'hostname' in EV['opts']:
-                    hostname = EV['opts']['hostname']
-                else:
-                    EV['opts']['hostname'] = hostname
-                if 'nodeNum' not in EV['opts']:
-                    EV['opts']['nodeNum'] = int(nodeNum)
-                x = EV['x']
-                y = EV['y']
-                self.addNode('EV', nodeNum, float(x), float(y), name=hostname)
+        # Load EVs
+        EVs = loadedTopology['EVs']
+        for EV in EVs:
+            nodeNum = EV['number']
+            hostname = 'ev' + nodeNum
+            if 'hostname' in EV['opts']:
+                hostname = EV['opts']['hostname']
+            else:
+                EV['opts']['hostname'] = hostname
+            if 'nodeNum' not in EV['opts']:
+                EV['opts']['nodeNum'] = int(nodeNum)
+            x = EV['x']
+            y = EV['y']
+            self.addNode('EV', nodeNum, float(x), float(y), name=hostname)
 
-                # Fix JSON converting tuple to list when saving
-                if 'privateDirectory' in EV['opts']:
-                    newDirList = []
-                    for privateDir in EV['opts']['privateDirectory']:
-                        if isinstance(privateDir, list):
-                            newDirList.append((privateDir[0], privateDir[1]))
-                        else:
-                            newDirList.append(privateDir)
-                    EV['opts']['privateDirectory'] = newDirList
-                self.evOpts[hostname] = EV['opts']
-                icon = self.findWidgetByName(hostname)
-                icon.bind('<Button-3>', self.do_evPopup)
+            # Fix JSON converting tuple to list when saving
+            if 'privateDirectory' in EV['opts']:
+                newDirList = []
+                for privateDir in EV['opts']['privateDirectory']:
+                    if isinstance(privateDir, list):
+                        newDirList.append((privateDir[0], privateDir[1]))
+                    else:
+                        newDirList.append(privateDir)
+                EV['opts']['privateDirectory'] = newDirList
+
+            # other EV specific configurations
+            # chargingMode --> automatic
+            # loggingLevels --> need a fix as privateDirectory
+            if 'loggingLevels' in EV['opts']:
+                newLoggingLevelsList = []
+                for logging in EV['opts']['loggingLevels']:
+                    if isinstance(logging, list):
+                        newLoggingLevelsList.append((logging[0], logging[1]))
+                    else:
+                        newLoggingLevelsList.append(logging)
+                EV['opts']['loggingLevels'] = newLoggingLevelsList
+            # exiCodec --> automatic
+            # sessionId --> automatic
+            # voltageAccuracy --> automatic
+
+            self.evOpts[hostname] = EV['opts']
+            icon = self.findWidgetByName(hostname)
+            icon.bind('<Button-3>', self.do_evPopup)
 
         # Load SEs
         SEs = loadedTopology['SEs']
@@ -1778,6 +1794,38 @@ class MiniEdit( Frame ):
                     else:
                         newDirList.append(privateDir)
                 SE['opts']['privateDirectory'] = newDirList
+
+            # other SE specific configurations
+            # chargingModes --> need a fix as privateDirectory
+            if 'chargingModes' in SE['opts']:
+                newChargingModesList = []
+                for e in SE['opts']['chargingModes']:
+                    if isinstance(e, list):
+                        newChargingModesList.append((e[0], e[1]))
+                    else:
+                        newChargingModesList.append(e)
+                SE['opts']['chargingModes'] = newChargingModesList
+            # loggingLevels --> need a fix as privateDirectory
+            if 'loggingLevels' in SE['opts']:
+                newLoggingLevelsList = []
+                for logging in SE['opts']['loggingLevels']:
+                    if isinstance(logging, list):
+                        newLoggingLevelsList.append((logging[0], logging[1]))
+                    else:
+                        newLoggingLevelsList.append(logging)
+                SE['opts']['loggingLevels'] = newLoggingLevelsList
+            # exiCodec --> automatic
+            # authOptions --> fix
+            if 'authOptions' in SE['opts']:
+                newAuthOptionsList = []
+                for logging in SE['opts']['authOptions']:
+                    if isinstance(logging, list):
+                        newAuthOptionsList.append((logging[0], logging[1]))
+                    else:
+                        newAuthOptionsList.append(logging)
+                SE['opts']['authOptions'] = newAuthOptionsList
+            # chargingFree --> automatic
+
             self.seOpts[hostname] = SE['opts']
             icon = self.findWidgetByName(hostname)
             icon.bind('<Button-3>', self.do_sePopup)
@@ -1904,10 +1952,10 @@ class MiniEdit( Frame ):
 
             # Save Switches and Hosts
             hostsToSave = []
-            switchesToSave = []
-            controllersToSave = []
             evToSave = []
             seToSave = []
+            switchesToSave = []
+            controllersToSave = []
             for widget in self.widgetToItem:
                 name = widget[ 'text' ]
                 tags = self.canvas.gettags( self.widgetToItem[ widget ] )
@@ -2942,8 +2990,8 @@ class MiniEdit( Frame ):
         if 'EV' not in tags:
             return
 
-        prefDefaults = self.evOpts[name]
-        prefDefaults.update(self.evPrefs)
+        prefDefaults = self.evPrefs
+        prefDefaults.update(self.evOpts[name])
         hostBox = EVDialog(self, title='EV Details', prefDefaults=prefDefaults)
         self.master.wait_window(hostBox.top)
         if hostBox.result:
@@ -2991,8 +3039,8 @@ class MiniEdit( Frame ):
         if 'SE' not in tags:
             return
 
-        prefDefaults = self.seOpts[name]
-        prefDefaults.update(self.sePrefs)
+        prefDefaults = self.sePrefs
+        prefDefaults.update(self.seOpts[name])
         hostBox = SEDialog(self, title='SE Details', prefDefaults=prefDefaults)
         self.master.wait_window(hostBox.top)
         if hostBox.result:
