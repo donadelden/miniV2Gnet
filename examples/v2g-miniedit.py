@@ -3296,6 +3296,18 @@ class MiniEdit( Frame ):
         # Make nodes
         info( "Getting Hosts and Switches.\n" )
         ip_number = 1
+        # save already used IPs
+        ip_assigned = [None]
+        for widget in self.widgetToItem:
+            tags = self.canvas.gettags(self.widgetToItem[widget])
+            name = widget['text']
+            if 'host' in tags and 'ip' in self.hostOpts[name] and len(self.hostOpts[name]['ip']) > 0:
+                ip_assigned.append(self.hostOpts[name]['ip'])
+            elif 'EV' in tags and 'ip' in self.evOpts[name] and len(self.evOpts[name]['ip']) > 0:
+                ip_assigned.append(self.evOpts[name]['ip'])
+            elif 'SE' in tags and 'ip' in self.seOpts[name] and len(self.seOpts[name]['ip']) > 0:
+                ip_assigned.append(self.seOpts[name]['ip'])
+
         for widget in self.widgetToItem:
             name = widget[ 'text' ]
             tags = self.canvas.gettags( self.widgetToItem[ widget ] )
@@ -3377,10 +3389,16 @@ class MiniEdit( Frame ):
                 if 'ip' in opts and len(opts['ip']) > 0:
                     ip = opts['ip']
                 else:
-                    nodeNum = ip_number  # self.hostOpts[name]['nodeNum']
-                    ip_number += 1
-                    ipBaseNum, prefixLen = netParse( self.appPrefs['ipBase'] )
-                    ip = ipAdd(i=nodeNum, prefixLen=prefixLen, ipBaseNum=ipBaseNum)
+                    # check if the ip is already taken
+                    while ip in ip_assigned:
+                        if ip_number == 256:
+                            exit("*** Fatal error: IP overflow. If you want to add more than 255 hosts/EVs/SEs please "
+                                 "manually set the appropriate IPs.")
+                        nodeNum = ip_number  # self.hostOpts[name]['nodeNum']
+                        ip_number += 1
+                        ipBaseNum, prefixLen = netParse( self.appPrefs['ipBase'] )
+                        ip = ipAdd(i=nodeNum, prefixLen=prefixLen, ipBaseNum=ipBaseNum)
+                    ip_assigned.append(ip)
 
                 # Create the correct host class
                 if 'cores' in opts or 'cpu' in opts:
@@ -3427,11 +3445,16 @@ class MiniEdit( Frame ):
                     defaultRoute = 'via '+opts['defaultRoute']
                 if 'ip' in opts and len(opts['ip']) > 0:
                     ip = opts['ip']
-                else:
-                    nodeNum = ip_number  # self.evOpts[name]['nodeNum']
-                    ip_number += 1
-                    ipBaseNum, prefixLen = netParse( self.appPrefs['ipBase'] )
-                    ip = ipAdd(i=nodeNum, prefixLen=prefixLen, ipBaseNum=ipBaseNum)
+                    # check if the ip is already taken
+                    while ip in ip_assigned:
+                        if ip_number == 256:
+                            exit("*** Fatal error: IP overflow. If you want to add more than 255 hosts/EVs/SEs please "
+                                 "manually set the appropriate IPs.")
+                        nodeNum = ip_number  # self.evOpts[name]['nodeNum']
+                        ip_number += 1
+                        ipBaseNum, prefixLen = netParse( self.appPrefs['ipBase'] )
+                        ip = ipAdd(i=nodeNum, prefixLen=prefixLen, ipBaseNum=ipBaseNum)
+                    ip_assigned.append(ip)
 
                 # Create the correct host class
                 if 'privateDirectory' in opts:
@@ -3491,10 +3514,16 @@ class MiniEdit( Frame ):
                 if 'ip' in opts and len(opts['ip']) > 0:
                     ip = opts['ip']
                 else:
-                    nodeNum = ip_number  # self.seOpts[name]['nodeNum']
-                    ip_number += 1
-                    ipBaseNum, prefixLen = netParse( self.appPrefs['ipBase'] )
-                    ip = ipAdd(i=nodeNum, prefixLen=prefixLen, ipBaseNum=ipBaseNum)
+                    # check if the ip is already taken
+                    while ip in ip_assigned:
+                        if ip_number == 256:
+                            exit("*** Fatal error: IP overflow. If you want to add more than 255 hosts/EVs/SEs please "
+                                 "manually set the appropriate IPs.")
+                        nodeNum = ip_number  # self.seOpts[name]['nodeNum']
+                        ip_number += 1
+                        ipBaseNum, prefixLen = netParse( self.appPrefs['ipBase'] )
+                        ip = ipAdd(i=nodeNum, prefixLen=prefixLen, ipBaseNum=ipBaseNum)
+                    ip_assigned.append(ip)
 
                 # Create the correct host class
                 if 'privateDirectory' in opts:
