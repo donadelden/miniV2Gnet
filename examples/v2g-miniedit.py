@@ -653,12 +653,11 @@ class EVDialog(HostDialog):
         ### TAB 5
         Label(self.evOptionsFrame, text="Intf for charging:").grid(row=0, sticky=E)
         Label(self.evOptionsFrame, text="(empty for default)").grid(row=0, column=2, sticky=W)
-        self.chargeIntfEntry = Entry(self.evOptionsFrame)
+        self.chargeIntf = StringVar(self.evOptionsFrame)
+        self.chargeIntfEntry = Entry(self.evOptionsFrame, textvariable=self.chargeIntf)
         self.chargeIntfEntry.grid(row=0, column=1, sticky=E)
-        # Add defined interfaces
-        chargeIntf = []
-        if 'externalInterfaces' in self.prefValues:
-            chargeIntf = self.chargeIntfEntry.insert(0, self.prefValues['externalInterfaces'][0])
+        if 'chargeIntf' in self.prefValues:
+            self.chargeIntf.set(self.prefValues['chargeIntf'])
 
         # exi codec
         Label(self.evOptionsFrame, text="EXI codec:").grid(row=1, sticky=E)
@@ -701,6 +700,7 @@ class EVDialog(HostDialog):
 
     def apply(self):
         results = self.applyHelper()
+        results['chargeIntf'] = self.chargeIntf.get()
         results['chargingMode'] = self.listChargingModes.get(self.listChargingModes.curselection()[0])
         loggingLevels = []
         for i in self.listLoggingLevels.curselection():
@@ -727,12 +727,11 @@ class SEDialog(HostDialog):
         ### TAB 5
         Label(self.seOptionsFrame, text="Intf for charging:").grid(row=0, sticky=E)
         Label(self.seOptionsFrame, text="(empty for default)").grid(row=0, column=2, sticky=W)
+        self.chargeIntf = StringVar(self.seOptionsFrame)
         self.chargeIntfEntry = Entry(self.seOptionsFrame)
         self.chargeIntfEntry.grid(row=0, column=1, sticky=E)
-        # Add defined interfaces
-        chargeIntf = []
-        if 'externalInterfaces' in self.prefValues:
-            chargeIntf = self.chargeIntfEntry.insert(0, self.prefValues['externalInterfaces'][0])
+        if 'chargeIntf' in self.prefValues:
+            self.chargeIntf.set(self.prefValues['chargeIntf'])
 
         # Set charging free
         Label(self.seOptionsFrame, text="Free charging:").grid(row=1, sticky=E)
@@ -779,6 +778,7 @@ class SEDialog(HostDialog):
 
     def apply(self):
         results = self.applyHelper()
+        results['chargeIntf'] = self.chargeIntf.get()
         chargingModes = []
         for i in self.listChargingModes.curselection():
             chargingModes.append(self.listChargingModes.get(i))
@@ -1752,6 +1752,7 @@ class MiniEdit( Frame ):
                 EV['opts']['privateDirectory'] = newDirList
 
             # other EV specific configurations
+            # chargeIntf --> automatic
             # chargingMode --> automatic
             # loggingLevels --> need a fix as privateDirectory
             if 'loggingLevels' in EV['opts']:
@@ -1796,6 +1797,7 @@ class MiniEdit( Frame ):
                 SE['opts']['privateDirectory'] = newDirList
 
             # other SE specific configurations
+            # chargeIntf --> automatic
             # chargingModes --> need a fix as privateDirectory
             if 'chargingModes' in SE['opts']:
                 newChargingModesList = []
@@ -2209,6 +2211,8 @@ class MiniEdit( Frame ):
 
                     # get evSpecificParameters
                     evSpecificParameters = ""
+                    if 'chargeIntf' in opts and len(opts['chargeIntf']) > 0:
+                        evSpecificParameters += "chargeIntf=\"" + str(opts['chargeIntf']) + "\", "
                     if 'chargingMode' in opts and len(opts['chargingMode']) > 0:
                         evSpecificParameters += "chargingMode=\"" + str(opts['chargingMode']) + "\", "
                     if 'loggingLevels' in opts and len(opts['loggingLevels']) > 0:
@@ -2248,6 +2252,8 @@ class MiniEdit( Frame ):
                         
                     # get seSpecificParameters
                     seSpecificParameters = ""
+                    if 'chargeIntf' in opts and len(opts['chargeIntf']) > 0:
+                        seSpecificParameters += "chargeIntf=\"" + str(opts['chargeIntf']) + "\", "
                     if 'chargingModes' in opts and len(opts['chargingModes']) > 0:
                         seSpecificParameters += "chargingModes=" + str(opts['chargingModes']) + ", "
                     if 'loggingLevels' in opts and len(opts['loggingLevels']) > 0:
@@ -3015,6 +3021,8 @@ class MiniEdit( Frame ):
             if len(hostBox.result['privateDirectory']) > 0:
                 newHostOpts['privateDirectory'] = hostBox.result['privateDirectory']
             # ev specific
+            if len(hostBox.result['chargeIntf']) > 0:
+                newHostOpts['chargeIntf'] = hostBox.result['chargeIntf']
             if len(hostBox.result['chargingMode']) > 0:
                 newHostOpts['chargingMode'] = hostBox.result['chargingMode']
             if len(hostBox.result['loggingLevels']) > 0:
@@ -3064,6 +3072,8 @@ class MiniEdit( Frame ):
             if len(hostBox.result['privateDirectory']) > 0:
                 newHostOpts['privateDirectory'] = hostBox.result['privateDirectory']
             # se specific
+            if len(hostBox.result['chargeIntf']) > 0:
+                newHostOpts['chargeIntf'] = hostBox.result['chargeIntf']
             if len(hostBox.result['chargingModes']) > 0:
                 newHostOpts['chargingModes'] = hostBox.result['chargingModes']
             if len(hostBox.result['loggingLevels']) > 0:
@@ -3429,6 +3439,9 @@ class MiniEdit( Frame ):
                 else:
                     hostCls=EV
                 debug( hostCls, '\n' )
+                chargeIntf = None
+                if 'chargeIntf' in opts and len(opts['chargeIntf']) > 0:
+                    chargeIntf = opts['chargeIntf']
                 chargingMode=None
                 if 'chargingMode' in opts and len(opts['chargingMode']) > 0:
                     chargingMode = opts['chargingMode']
@@ -3449,6 +3462,7 @@ class MiniEdit( Frame ):
                                        cls=hostCls,
                                        ip=ip,
                                        defaultRoute=defaultRoute,
+                                       chargeIntf=chargeIntf,
                                        chargingMode=chargingMode,
                                        loggingLevels=loggingLevels,
                                        exiCodec=exiCodec,
@@ -3488,6 +3502,9 @@ class MiniEdit( Frame ):
                 else:
                     hostCls=SE
                 debug( hostCls, '\n' )
+                chargeIntf = None
+                if 'chargeIntf' in opts and len(opts['chargeIntf']) > 0:
+                    chargeIntf = opts['chargeIntf']
                 chargingModes=None
                 if 'chargingModes' in opts and len(opts['chargingModes']) > 0:
                     chargingModes = opts['chargingModes']
@@ -3508,6 +3525,7 @@ class MiniEdit( Frame ):
                                        cls=hostCls,
                                        ip=ip,
                                        defaultRoute=defaultRoute,
+                                       chargeIntf=chargeIntf,
                                        chargingModes=chargingModes,
                                        loggingLevels=loggingLevels,
                                        authOptions=authOptions,

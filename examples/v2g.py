@@ -64,7 +64,7 @@ class Electric(Node):
         atexit.register(cleaner)
 
 
-    def intfSetup(self, intfName):
+    def setIntf(self, intfName):
         """Sets the intfName on the .properties file.
         :param intfName: the intfName to be setted. """
 
@@ -145,8 +145,8 @@ class Electric(Node):
 
         f = fileinput.input([self.folder + "/" + prefix + "Config.properties"], mode='r')
         for line in f:
-            if not line.strip().startswith('#') and len(line) > 3:
-                (k, v) = line.strip().split('=')
+            if not line.strip().replace(" ", "").startswith('#') and len(line) > 3:
+                (k, v) = line.strip().replace(" ", "").split('=')
                 properties.update({k: v})
         f.close()
 
@@ -160,7 +160,7 @@ class EV(Electric):
     EV Communication Controller (EVCC) with a SECC to require charging service """
 
     def __init__(self, name, path=None, chargingMode=None, exi=None, logging=None, sessionId=None, voltageAccuracy=None,
-                 **kwargs):
+                 chargeIntf=None, **kwargs):
         self.name = str(name)
         Electric.__init__(self, self.name, path, **kwargs)
 
@@ -184,6 +184,11 @@ class EV(Electric):
             self.setSessionId(id=sessionId)
         if voltageAccuracy is not None:
             self.setVoltageAccuracy(acc=voltageAccuracy)
+        # intf setup: if no interface is provided it must be provided later, otherwise default will be set
+        if chargeIntf is not None:
+            self.setIntf(intfName=chargeIntf)
+        else:
+            self.setIntf(intfName="")
 
     def charge(self, in_xterm=False, intf=None):
         """Starting the charging process.
@@ -194,9 +199,11 @@ class EV(Electric):
         print("*** Looking for EVSE and start charging...")
 
         # setting the interface (default: default interface)
-        if intf is None:
-            intf = self.intf().name
-        self.intfSetup(intf)
+        if intf is not None:
+            self.setIntf(intf)
+        elif self.getProperties()['network.interface'] == "":
+            print("* No intf selected, using default interface.")
+            self.setIntf(self.intf().name)
 
         if in_xterm:
             # run inside an xterm. You must append the return value to net.terms to terminal on exit.
@@ -270,7 +277,7 @@ class SE(Electric):
     """
 
     def __init__(self, name, path=None, chargingModes=None, exiCodec=None, loggingLevels=None, authOptions=None,
-                 chargingFree=None, **kwargs):
+                 chargingFree=None, chargeIntf=None, **kwargs):
         self.name = str(name)
         Electric.__init__(self, self.name, path, **kwargs)
 
@@ -297,7 +304,11 @@ class SE(Electric):
         # setup free charge
         if chargingFree is not None:
             self.setChargingFree(free=chargingFree)
-
+        # intf setup: if no interface is provided it must be provided later, otherwise default will be set
+        if chargeIntf is not None:
+            self.setIntf(intfName=chargeIntf)
+        else:
+            self.setIntf(intfName="")
 
     def startCharge(self, in_xterm=True, intf=None):
         """
@@ -309,9 +320,11 @@ class SE(Electric):
         print("*** Starting waiting for EVs...")
 
         # setting the interface (default: default interface)
-        if intf is None:
-            intf = self.intf().name
-        self.intfSetup(intf)
+        if intf is not None:
+            self.setIntf(intf)
+        elif self.getProperties()['network.interface'] == "":
+            print("* No intf selected, using default interface.")
+            self.setIntf(self.intf().name)
 
         if in_xterm:
             # run inside an xterm. You must append the return value to net.terms to terminal on exit.
