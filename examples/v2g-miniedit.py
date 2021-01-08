@@ -2030,7 +2030,7 @@ class MiniEdit( Frame ):
                     if 'externalInterfaces' in opts:
                         for extInterface in opts['externalInterfaces']:
                             f.write("    Intf( '" + extInterface + "', node=" + name + " )\n")
-                # add Ses
+                # add SEs
                 elif 'SE' in tags:
                     opts = self.seOpts[name]
                     ip = None
