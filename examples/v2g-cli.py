@@ -19,7 +19,7 @@ from time import sleep
 
 def v2gNet():
 
-    "Create a network with an EV and SE connected via a link."
+    "Create a network with a controller, EV and SE connected via a switch."
 
     start_on_load = False
 
@@ -31,10 +31,11 @@ def v2gNet():
     net.addController( 'c0' )
 
     info( '*** Adding hosts: SE and EV\n' )
-    se1 = net.addHost("se1", SE, ip='10.0.0.1' )
-    ev1 = net.addHost("ev1", EV, ip='10.0.0.2' )
+    se1 = net.addHost("se1", SE )
+    ev1 = net.addHost("ev1", EV )
 
     info( '*** Adding switch\n' )
+
     s1 = net.addSwitch( 's1' )
 
     info( '*** Creating links\n' )
@@ -48,7 +49,7 @@ def v2gNet():
 
     info( '*** Running CLI\n' )
     info( '*** BASIC USAGE:\n' )
-    info( '     - With `py se1.startCharge(in_xterm=True)` the SE will wait for charging EVs.\n' )
+    info( '     - With `py se1.startCharge()` the SE will wait for charging EVs.\n' )
     info( '     - With `py ev1.charge(in_xterm=True)` the EV will start charging in the linked SE.\n' )
 
     if start_on_load == True:

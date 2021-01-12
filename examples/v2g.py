@@ -11,8 +11,10 @@ import sys
 from os import popen
 
 from mininet.term import makeTerm
+from mininet.node import OVSSwitch
 from mininet.moduledeps import pathCheck
 from mininet.node import Node
+from mininet.util import quietRun
 
 
 class Electric(Node):
@@ -171,3 +173,65 @@ class SE(Electric):
         else:
             print("* The process does not exist. Call .startCharge() first.")
             return False
+
+        
+class MiMOVSSwitch( OVSSwitch ):
+    "Open vSwitch switch acting as Man-in-the-middle. Depends on ovs-vsctl."
+
+    def __init__( self, name, failMode='secure', datapath='kernel',
+                  inband=False, protocols=None,
+                  reconnectms=1000, stp=False, batch=False, **params ):
+        """name: name for switch
+           failMode: controller loss behavior (secure|standalone)
+           datapath: userspace or kernel mode (kernel|user)
+           inband: use in-band control (False)
+           protocols: use specific OpenFlow version(s) (e.g. OpenFlow13)
+                      Unspecified (or old OVS version) uses OVS default
+           reconnectms: max reconnect timeout in ms (0/None for default)
+           stp: enable STP (False, requires failMode=standalone)
+           batch: enable batch startup (False)"""
+        OVSSwitch.__init__( self, name, **params )
+
+    def dpctl( self, *args ):
+        "Run ovs-ofctl command"
+        return self.cmd( 'ovs-ofctl', *args )
+
+    def add_mim( self, source, target, mim ):
+        # BEWARE THIS IS IPV4
+
+        # get ip, mac
+
+        # arp request is sent to broadcast (flood rule)
+        # arp reply is sent to who requested
+
+        # sh ovs-ofctl add-flow s1 dl_type=0x806,nw_proto=1,dl_src=00:00:00:00:00:03,actions=drop
+
+        # sh ovs-ofctl add-flow s1 dl_src=00:00:00:00:00:01,dl_dst=00:00:00:00:00:03,actions=mod_nw_dst:10.0.0.3,output:3
+        # sh ovs-ofctl add-flow s1 dl_src=00:00:00:00:00:03,dl_dst=00:00:00:00:00:01,actions=mod_nw_src:10.0.0.2,output:1
+        # sh ovs-ofctl add-flow s1 dl_type=0x806,nw_proto=1,actions=flood
+        # arpspoof -i h3-eth0 -c own -t 10.0.0.1 10.0.0.2
+
+        # drop arp replies from mim (3)
+        # print(self.cmd("ovs-ofctl", "add-flow", "s1", "dl_type=0x806,nw_proto=1,nw_src=10.0.0.3,actions=drop"))
+        
+        # mac 10.0.0.2 is already linked to (3) by mim arpspoof
+        # malicious node changes the ip
+        # source -> mim, mim
+        self.cmd("ovs-ofctl", "add-flow", "s1", "dl_src=%s,dl_dst=%s,actions=mod_nw_dst:%s,output:3" % (source.MAC(), mim.MAC(), mim.IP()))
+        # mim -> target, source
+        self.cmd("ovs-ofctl", "add-flow", "s1", "dl_src=%s,dl_dst=%s,actions=mod_nw_src:%s,output:1" % (mim.MAC(), source.MAC(), target.IP()))
+        # drop the arp relys coming from mim
+        # self.cmd("ovs-ofctl", "add-flow", "s1", "dl_type=0x806,nw_proto=1,dl_src=%s,actions=drop" % (mim.MAC()))
+        # flood the arp relys to all nodes who requested them
+        self.cmd("ovs-ofctl", "add-flow", "s1", "dl_type=0x806,nw_proto=1,actions=flood")
+        print(self.cmd("ovs-ofctl", "dump-flows", "s1"))
+
+class MiMNode( Node ):
+    def __init__( self, name, source=None, inNamespace=True, **params ):
+        Node.__init__(  self, name, inNamespace=True, **params  )
+
+    def start_arpspoof( self, source, target ):
+        # "2>/dev/null 1>/dev/null &"
+        self.cmd("arpspoof", "-i mim-eth0", "-c own", "-t %s" % source.IP(), "%s" % target.IP(), " &")
+        # on mim
+        # arpspoof -i h3-eth0 -c own -t 10.0.0.1 10.0.0.2 # send arp reply
