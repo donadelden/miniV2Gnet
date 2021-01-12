@@ -58,16 +58,20 @@ def v2gNet():
     info('%s %s\n'%(ev1.IP(), ev1.MAC()))
     info('%s %s\n'%(mim.IP(), mim.MAC()))
 
-    s1.add_mim(se1, ev1, mim)
+    s1.add_mim_flows(se1, ev1, mim)
     mim.start_arpspoof(se1, ev1)
-    ## CAREFUL: MAC addr in table of source are matching, however communication works anyway
+    ## CAREFUL: MAC addrs in table of source are matching, however communication works anyway
     # sleep(1)
     # se1.cmd("arp", "-d", "%s" % mim.IP()) # problem: arpspoof wants to know the macaddr of source
+    # ev1.cmd("arp", "-d", "%s" % mim.IP()) # problem: arpspoof wants to know the macaddr of source
     # this generates an entry in the table of source with macaddr of mim
 
     # tested connection with 
     # # mim: nc -l -p 20000
     # # se1: nc 10.0.0.2 20000
+    # mim.receive_thread()
+    # sleep(1)
+    # se1.test_send(ev1)
 
     if start_on_load == True:
         info( '*** Starting charge on the SE.\n' )
