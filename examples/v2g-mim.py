@@ -13,6 +13,7 @@ from mininet.net import Mininet
 from mininet.node import NullController
 from mininet.cli import CLI
 from mininet.log import setLogLevel, info
+from mininet.term import makeTerm
 
 from v2g import EV, SE, MiMOVSSwitch, MiMNode # TODO: replace with mininet.v2g
 from time import sleep
@@ -59,6 +60,10 @@ def v2gNet():
     info('%s %s\n'%(mim.IP(), mim.MAC()))
 
     s1.add_mim_flows(se1, ev1, mim)
+
+    makeTerm(se1)
+    makeTerm(mim)
+
     mim.start_arpspoof(se1, ev1)
     ## CAREFUL: MAC addrs in table of source are matching, however communication works anyway
     # sleep(1)
@@ -72,6 +77,10 @@ def v2gNet():
     # mim.receive_thread()
     # sleep(1)
     # se1.test_send(ev1)
+
+    # tested connection (IPv6)
+    # # mim: ncat -6 -l -p 20000
+    # # se1: ncat -6 -C ev1ipv6%se1-eth0 20000
 
     if start_on_load == True:
         info( '*** Starting charge on the SE.\n' )
