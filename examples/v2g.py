@@ -8,7 +8,6 @@ import fileinput
 import random
 import string
 import sys
-import socket, threading # for MiM
 from os import popen
 
 from mininet.term import makeTerm
@@ -257,23 +256,3 @@ class MiMNode( Node ):
         # fake MAC in arp table of target
         self.cmd("arpspoof", "-i mim-eth0", "-t %s" % target.IP(), "%s" % source.IP(), " 2>/dev/null 1>/dev/null &")
 
-    # def receive_thread( self ):
-    #     receive_thread = threading.Thread(target=self.receive, name="Receive")
-    #     receive_thread.start()
-
-    def receive ( self ):
-        TCP_IP = ''
-        TCP_PORT = 2000
-        BUFFER_SIZE = 20
-
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind((TCP_IP, TCP_PORT))
-        s.listen(1)
-
-        conn, addr = s.accept()
-        while not self.stop_receive:
-            data = conn.recv(BUFFER_SIZE)
-            if not data:
-                break
-            conn.send(data)
-        conn.close()
