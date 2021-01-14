@@ -76,6 +76,11 @@ def v2gNet():
     # # se1: ncat -6 -C ev1ipv6%se1-eth0 20000
     # # ev1: ncat -6 -C se1ipv6%ev1-eth0 20000
 
+    # tested mim (IPv6)
+    # # se1: ncat -6 -l -p 20
+    # # mim: ncat -6 -l -p 200 -c "ncat -6 se1ipv6%mim-eth0 20"
+    # # ev1: ncat -6 se1ipv6%ev1-eth0 200
+
     if start_on_load == True:
         info( '*** Starting charge on the SE.\n' )
         # TODO: move the sleep command to the SE and EV charge.
