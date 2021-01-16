@@ -72,11 +72,11 @@ if __name__ == "__main__":
     # UDP: ev1          -> se1:15118
     # UDP: se1:15118    -> ev1
 
-    # modified flow
+    # modified flow with ovs-ofctl
     # a) UDP: ev1             -> mim:15118(->9)
-    # b) UDP: mim:15120       -> se1:15118
-    # c) UDP: se1:15118       -> mim:15120
-    # d) UDP: mim:15119(->8)    -> ev1
+    # b) UDP: mim:15119       -> se1:15118
+    # c) UDP: se1:15118       -> mim:15119
+    # d) UDP: mim:15119(->8)  -> ev1
 
     upd_communication_finished = False
     with socket.socket(socket.AF_INET6, socket.SOCK_DGRAM) as s:
