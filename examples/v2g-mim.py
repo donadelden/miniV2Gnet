@@ -52,23 +52,23 @@ def v2gNet():
 
     info( '*** Running CLI\n' )
     info( '*** BASIC USAGE:\n' )
-    info( '     - With `py se1.startCharge()` the SE will wait for charging EVs.\n' )
-    info( '     - With `py ev1.charge(in_xterm=True)` the EV will start charging in the linked SE.\n' )
+    info( '     - With `py ev1.charge(in_xterm=True)` the EV will start charging in the linked SE (manual by default).\n' )
+    info( '     - With `py se1.startCharge()` the SE will wait for charging EVs (if you close xterm on se1).\n' )
 
-    info('%s %s\n'%(se1.IP(), se1.MAC()))
-    info('%s %s\n'%(ev1.IP(), ev1.MAC()))
-    info('%s %s\n'%(mim.IP(), mim.MAC()))
+    # info('%s %s\n'%(se1.IP(), se1.MAC()))
+    # info('%s %s\n'%(ev1.IP(), ev1.MAC()))
+    # info('%s %s\n'%(mim.IP(), mim.MAC()))
 
     s1.add_mim_flows(se1, ev1, mim)
 
     makeTerm(mim)
 
     mim.start_spoof(se1, ev1)
+    # this generates an entry in the table of source with macaddr of mim (but we don't care)
 
+    info( '*** Starting charge on the SE.\n' )
     sleep(1)
     net.terms += [ se1.startCharge() ]
-
-    # this generates an entry in the table of source with macaddr of mim (but we don't care)
 
     # tested connection (IPv4) 
     # # mim: nc -l -p 20000
@@ -85,12 +85,9 @@ def v2gNet():
     # # ev1: ncat -6 se1ipv6%ev1-eth0 200
 
     if start_on_load == True:
-        info( '*** Starting charge on the SE.\n' )
         # TODO: move the sleep command to the SE and EV charge.
-        sleep( 1 ) # IMPORTANT! Give a second to the net to complete the setup (otherwise crashes are possible)
-        net.terms += [ se1.startCharge() ]
         info( '*** EV is charging.\n' )
-        sleep( 1 )
+        sleep( 1 ) # IMPORTANT! Give a second to the net to complete the setup (otherwise crashes are possible)
         net.terms += [ ev1.charge( in_xterm=True ) ]
     
     CLI( net )

@@ -49,14 +49,14 @@ def v2gNet():
 
     info( '*** Running CLI\n' )
     info( '*** BASIC USAGE:\n' )
-    info( '     - With `py ev1.charge(in_xterm=True)` the EV will start charging in the linked SE.\n' )
+    info( '     - With `py ev1.charge(in_xterm=True)` the EV will start charging in the linked SE (manual by default).\n' )
     info( '     - With `py se1.startCharge()` the SE will wait for charging EVs (if you close xterm on se1).\n' )
 
+    info( '*** Starting charge on the SE.\n' )
     sleep( 1 ) # IMPORTANT! Give a second to the net to complete the setup (otherwise crashes are possible)
     net.terms += [ se1.startCharge() ]
 
     if start_on_load == True:
-        info( '*** Starting charge on the SE.\n' )
         # TODO: move the sleep command to the SE and EV charge.
         info( '*** EV is charging.\n' )
         sleep( 1 )
