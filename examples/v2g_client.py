@@ -1,7 +1,7 @@
 import socket
 from time import sleep
 
-class Client:
+class TCPClient:
     '''
     TCP Client which can send a messsage and get the response if available.
     '''
@@ -28,14 +28,31 @@ class Client:
         print('%s <- %s : %s' % (self.name, self.sockaddr[0], response))
         return response
 
-    def __exit__(self):
+    def close(self):
         # Clean up
         self.s.close()
 
+    def __exit__(self):
+        self.close()
 
-if __name__ == "__main__":
-    # ev1 ipv6
-    addrinfo = socket.getaddrinfo('fe80::543f:85ff:fe63:91a7%s' % ('%se1-eth0'), 20000, socket.AF_INET6, socket.SOCK_STREAM)
-    client = Client(addrinfo)
-    client.send()
-    print(client.get_response())
+class TCPServer:
+    '''
+    TCP Server which can send a messsage and get the response if available.
+    '''
+    def __init__(self, port, name = "server"):
+        # Connect to the server
+        self.name = name
+        self.s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        self.s.bind(('', port))
+        self.s.listen(1)
+        print('Server: Listening TCP messages on port %d' % (port))
+        
+    def accept(self):
+        return self.s.accept()
+
+    def close(self):
+        # Clean up
+        self.s.close()
+
+    def __exit__(self):
+        self.close()

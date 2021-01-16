@@ -61,10 +61,13 @@ def v2gNet():
 
     s1.add_mim_flows(se1, ev1, mim)
 
-    makeTerm(se1)
     makeTerm(mim)
 
     mim.start_spoof(se1, ev1)
+
+    sleep(1)
+    net.terms += [ se1.startCharge() ]
+
     # this generates an entry in the table of source with macaddr of mim (but we don't care)
 
     # tested connection (IPv4) 
