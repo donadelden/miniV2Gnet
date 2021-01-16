@@ -284,7 +284,7 @@ class MiMNode(Electric):
         # cd into the right folder
         self.cmd("cd ./{}".format(self.folder))
 
-    def start_decoder(self, in_xterm=True, intf=None):
+    def start_decoder(self, in_xterm=True):
         """Starting the decoder.
         :param in_xterm: True to run the charge inside an xterm instance. Default: False."""
 
@@ -297,10 +297,11 @@ class MiMNode(Electric):
             self.proc = makeTerm(self, cmd="bash -i -c '{}'".format(command))[0]
             return self.proc
         else:
-            self.proc = self.popen("cd ./{}; java -jar V2Gdecoder.jar -w".format(self.folder), shell=True)
-            # print the stdout to the CLI at the end of the charging process
-            proc_stdout = self.proc.communicate()[0].strip()
-            print(proc_stdout)
+            self.cmd("cd ./{}; java -jar V2Gdecoder.jar -w".format(self.folder), "2>/dev/null 1>/dev/null &")
+            # self.proc = self.popen("cd ./{}; java -jar V2Gdecoder.jar -w".format(self.folder), shell=True)
+            # # print the stdout to the CLI at the end of the charging process
+            # proc_stdout = self.proc.communicate()[0].strip()
+            # print(proc_stdout)
 
     def start_spoof( self, server=None, client=None, use_ipv6=True ):
         # IPV4

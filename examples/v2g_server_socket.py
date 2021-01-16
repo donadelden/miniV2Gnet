@@ -1,6 +1,7 @@
 import socket
 from v2g_client import TCPClient, TCPServer
 from binascii import hexlify
+import requests
 
 class V2GTPMessage:
     '''
@@ -20,6 +21,10 @@ class V2GTPMessage:
         self.payload_length = data[4:8]
         self.payload = data[8:]
         print("EXI:", hexlify(self.payload))
+
+    def decode_payload_exi(self):
+        r = requests.post("http://localhost:9000", headers={"Format":"EXI"}, data=hexlify(self.payload))
+        return r.text
 
 class SECCDiscoveryRes(V2GTPMessage):
     '''
@@ -135,21 +140,29 @@ if __name__ == "__main__":
 
     mim = TCPServer(SECC_FAKE_PORT)
     ev1_conn, addr = mim.accept() # waits for ev1 to connect
+    print_count = 0
     with ev1_conn:
         print(addr, "has connected")
         while ev1_data != b'':
             ev1_data = ev1_conn.recv(1024)
             try:
-                ev1_message = V2GTPMessage(ev1_data)
+                if print_count < 5:
+                    ev1_message = V2GTPMessage(ev1_data)
+                    print(ev1_message.decode_payload_exi())
             except:
                 print('Not a V2GTPMessage')
             se1.send(ev1_data)
             se1_data = se1.get_response()
-            try:    
-                se1_message = V2GTPMessage(se1_data)
+            try:   
+                if print_count < 5:
+                    se1_message = V2GTPMessage(se1_data)
+                    print(se1_message.decode_payload_exi())
             except:
                 print('Not a V2GTPMessage')
             ev1_conn.send(se1_data)
+
+            print_count += 1
+
     
     mim.close()
     se1.close()

@@ -63,6 +63,7 @@ def v2gNet():
 
     makeTerm(mim)
 
+    mim.start_decoder(in_xterm=False)
     mim.start_spoof(se1, ev1)
     # this generates an entry in the table of source with macaddr of mim (but we don't care)
 
