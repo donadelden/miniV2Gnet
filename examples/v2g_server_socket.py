@@ -43,10 +43,6 @@ class SECCDiscoveryRes(V2GTPMessage):
         self.secc_ip_address = self.payload[:16]
         secc_port = struct.unpack("BB",self.payload[16:18])
         self.secc_port = secc_port[0] << 8 | secc_port[1]
-        # if (sys.version_info.major == 3):
-        #     self.secc_port = int.from_bytes(self.payload[16:18],byteorder='big')
-        # else:
-        #     self.secc_port = int(self.payload[16:18].encode('hex'),16)
         self.set_security = self.payload[18:19] # [0]
         self.set_transport_protocol = self.payload[19:20] # [0]
      
@@ -168,7 +164,7 @@ if __name__ == "__main__":
         try:
             if print_count < 5:
                 ev1_message = V2GTPMessage(ev1_data)
-                print(ev1_message.decode_payload_exi())
+                # print(ev1_message.decode_payload_exi())
         except:
             print('Not a V2GTPMessage')
         se1.send(ev1_data)
@@ -176,7 +172,7 @@ if __name__ == "__main__":
         try:   
             if print_count < 5:
                 se1_message = V2GTPMessage(se1_data)
-                print(se1_message.decode_payload_exi())
+                # print(se1_message.decode_payload_exi())
         except:
             print('Not a V2GTPMessage')
         ev1_conn.send(se1_data)
