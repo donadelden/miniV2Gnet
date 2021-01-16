@@ -22,10 +22,8 @@ class Electric(Node):
 
     def __init__(self, name, path=None, **kwargs):
         # check if java is available (it is needed for RiseV2G)
-        # maybe TODO add this in the installer
         pathCheck('java')
         # set the path of RiseV2G
-        # TODO: add on the installer a copy to this folder
         if path is not None:
             self.RISE_PATH = path
         else:
@@ -68,23 +66,6 @@ class Electric(Node):
             if line.strip().startswith('network.interface'):
                 line = 'network.interface = {}\n'.format(intfName)
             sys.stdout.write(line)
-
-    def test_send(self, rec):
-        """Test send to MiM via TCP """
-        TCP_IP = rec.IP()
-        TCP_PORT = 2000
-        BUFFER_SIZE = 1024
-        MESSAGE = 'Test'
-
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.connect((TCP_IP, TCP_PORT))
-            s.send(MESSAGE)
-            data = s.recv(BUFFER_SIZE)
-            s.close()
-            print("received: ", data)
-        except:
-            print("cant connect")
 
 
 class EV(Electric):
@@ -289,10 +270,37 @@ class MiMOVSSwitch( OVSSwitch ):
             
         print(self.cmd("ovs-ofctl", "dump-flows", "s1"))
 
-class MiMNode( Node ):
-    """Basic node class for man in the middle."""
-    def __init__( self, name, server=None, inNamespace=True, **params ):
-        Node.__init__(  self, name, inNamespace=True, **params  )
+class MiMNode(Electric):
+    """Electric node class for man in the middle."""
+
+    def __init__(self, name, path=None, **kwargs):
+        self.name = str(name)
+        Electric.__init__(self, self.name, '/usr/share/.miniV2G/V2Gdecoder', **kwargs)
+
+        self.folder = "{}_mim_{}".format(self.FOLDER_PREFIX, self.name)
+        self.cmd("mkdir {}".format(self.folder))
+        self.cmd("cp -r {}/schemas {}/".format(self.RISE_PATH, self.folder))
+        self.cmd("cp {}/V2Gdecoder.jar {}/".format(self.RISE_PATH, self.folder))
+        # cd into the right folder
+        self.cmd("cd ./{}".format(self.folder))
+
+    def start_decoder(self, in_xterm=True, intf=None):
+        """Starting the decoder.
+        :param in_xterm: True to run the charge inside an xterm instance. Default: False."""
+
+        print("*** Starting the decoder...")
+
+        if in_xterm:
+            # run inside an xterm. You must append the return value to net.terms to terminal on exit.
+            command = "cd ./{}; java -jar V2Gdecoder.jar -w; bash -i".format(self.folder)
+            # this return a list of just one xterm, so [0] is needed
+            self.proc = makeTerm(self, cmd="bash -i -c '{}'".format(command))[0]
+            return self.proc
+        else:
+            self.proc = self.popen("cd ./{}; java -jar V2Gdecoder.jar -w".format(self.folder), shell=True)
+            # print the stdout to the CLI at the end of the charging process
+            proc_stdout = self.proc.communicate()[0].strip()
+            print(proc_stdout)
 
     def start_spoof( self, server=None, client=None, use_ipv6=True ):
         # IPV4

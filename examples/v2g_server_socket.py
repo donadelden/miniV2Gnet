@@ -19,6 +19,7 @@ class V2GTPMessage:
         self.payload_type = data[2:4]
         self.payload_length = data[4:8]
         self.payload = data[8:]
+        print("EXI:", hexlify(self.payload))
 
 class SECCDiscoveryRes(V2GTPMessage):
     '''
@@ -138,8 +139,16 @@ if __name__ == "__main__":
         print(addr, "has connected")
         while ev1_data != b'':
             ev1_data = ev1_conn.recv(1024)
+            try:
+                ev1_message = V2GTPMessage(ev1_data)
+            except:
+                print('Not a V2GTPMessage')
             se1.send(ev1_data)
             se1_data = se1.get_response()
+            try:    
+                se1_message = V2GTPMessage(se1_data)
+            except:
+                print('Not a V2GTPMessage')
             ev1_conn.send(se1_data)
     
     mim.close()

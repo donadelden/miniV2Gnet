@@ -1,5 +1,6 @@
 import socket
 from time import sleep
+from binascii import hexlify
 
 class TCPClient:
     '''
@@ -19,13 +20,13 @@ class TCPClient:
 
     def send(self, message=b'Hello, world'):
         # Send the data and wait for response
-        print('%s -> %s : %s' % (self.name, self.sockaddr[0], message))
+        print('%s -> %s : %s' % (self.name, self.sockaddr[0], hexlify(message)))
         len_sent = self.s.send(message)
 
     def get_response(self):
         # Receive a response
         response = self.s.recv(1024)
-        print('%s <- %s : %s' % (self.name, self.sockaddr[0], response))
+        print('%s <- %s : %s' % (self.name, self.sockaddr[0], hexlify(response)))
         return response
 
     def close(self):
