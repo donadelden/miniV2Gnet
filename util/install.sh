@@ -282,8 +282,8 @@ function v2g {
     echo "Installing v2g..."
    
     if ! which curl; then
-	echo "Installing curl..."
-	$install curl
+        echo "Installing curl..."
+        $install curl
     fi
 
     # Download latest compiled release available on official repo
