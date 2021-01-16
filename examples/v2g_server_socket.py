@@ -103,9 +103,9 @@ if __name__ == "__main__":
                 print("SE->MIM %s:%s" % (se1_ip, udp_se1_port))
                 print("(len=%d) : %s" % (len(se1_data), hexlify(se1_data)))
                 secc_udp_response = SECCDiscoveryRes(se1_data)
-                print("V2GTPMessage contains TCP secc_ip:secc_port: %s:%s, port altered to %s" % (hexlify(secc_udp_response.secc_ip_address), secc_udp_response.secc_port, altered_secc_udp_response.secc_port))
                 # alter port
                 altered_secc_udp_response = secc_udp_response.get_altered_data(port=SECC_FAKE_PORT)
+                print("V2GTPMessage contains TCP secc_ip:secc_port: %s:%s, port altered to %s" % (hexlify(secc_udp_response.secc_ip_address), secc_udp_response.secc_port, altered_secc_udp_response.secc_port))
                 
                 # d)
                 print("MIM->EV (fw) %s:%s" % (ev1_ip, udp_ev1_port))
