@@ -176,9 +176,7 @@ class SE(Electric):
 class MiMOVSSwitch( OVSSwitch ):
     "Open vSwitch switch acting as Man-in-the-middle. Depends on ovs-vsctl."
 
-    def __init__( self, name, failMode='secure', datapath='kernel',
-                  inband=False, protocols=None,
-                  reconnectms=1000, stp=False, batch=False, **params ):
+    def __init__( self, name, **params ):
         """name: name for switch
            failMode: controller loss behavior (secure|standalone)
            datapath: userspace or kernel mode (kernel|user)
@@ -267,8 +265,8 @@ class MiMOVSSwitch( OVSSwitch ):
             # # action: send flow to client
             self.cmd("ovs-ofctl", "add-flow", "s1", "dl_type=0x86dd,ipv6_dst=%s,in_port=3,actions=set_field:%s-\>ipv6_src,output:2" % (clientIPV6, serverIPV6))
 
-            
         print(self.cmd("ovs-ofctl", "dump-flows", "s1"))
+
 
 class MiMNode(Electric):
     """Electric node class for man in the middle."""
@@ -318,3 +316,23 @@ class MiMNode(Electric):
             self.cmd('echo 1 > /proc/sys/net/ipv6/conf/all/forwarding')
             self.cmd('ip6tables -I OUTPUT -p icmpv6 --icmpv6-type redirect -j DROP')
             self.cmd('parasite6 %s' % self.intf().name, "2>/dev/null 1>/dev/null &")
+            print("*** Spoofing started on interface %s." % self.intf().name)
+
+
+class MiM(object):
+
+    def __init__(self, MiMhost, MiMswitch, client, server, **kwargs):
+        self.MiMhost = MiMhost
+        self.MiMswitch = MiMswitch
+        self.client = client
+        self.server = server
+
+    def add_mim_flows(self, use_ipv6=True):
+        self.MiMswitch.add_mim_flows(self.server, self.client, self.MiMhost, use_ipv6=use_ipv6)
+
+    def start_spoof(self, use_ipv6=True):
+        self.MiMhost.start_spoof(server=self.server, client=self.client, use_ipv6=use_ipv6)
+
+    def setup(self, use_ipv6=True):
+        self.add_mim_flows(use_ipv6=use_ipv6)
+        self.start_spoof(use_ipv6=use_ipv6)

@@ -9,20 +9,21 @@
     - Make sure java, xterm, curl is installed and install it otherwise.
 """
 
-from mininet.net import Mininet
+from net import Mininet # TODO: read mininet. in the end
 from mininet.node import NullController
 from mininet.cli import CLI
 from mininet.log import setLogLevel, info
 from mininet.term import makeTerm
 
-from v2g import EV, SE, MiMOVSSwitch, MiMNode # TODO: replace with mininet.v2g
+from v2g import EV, SE, MiMOVSSwitch, MiMNode, MiM # TODO: replace with mininet.v2g
 from time import sleep
+
 
 def v2gNet():
 
     "Create a network without an EV and SE connected via a switch."
 
-    start_on_load = False
+    start_on_load = True
 
     net = Mininet(  )
 
@@ -34,21 +35,24 @@ def v2gNet():
     info( '*** Adding hosts: SE, EV and mim\n' )
     se1 = net.addHost("se1", SE )
     ev1 = net.addHost("ev1", EV )
-    mim = net.addHost("mim", MiMNode)
+    #mim = net.addHost("mim", MiMNode)
+
+    MIM = net.addMiM("", ev1, se1, "mim", "s1")
 
     info( '*** Adding MiM switch\n' )
 
-    s1 = net.addSwitch( 's1', MiMOVSSwitch )
+    #s1 = net.addSwitch( 's1', MiMOVSSwitch )
 
     info( '*** Creating links\n' )
-    net.addLink( se1, s1 )
-    net.addLink( ev1, s1 )
-    net.addLink( mim, s1 ) # ev and se don't know about mim
+    #net.addLink( se1, s1 )
+    #net.addLink( ev1, s1 )
+    #net.addLink( mim, s1 ) # ev and se don't know about mim
 
     sleep(1)  # IMPORTANT! Give a second to the net to complete the setup (otherwise crashes are possible)
 
     info( '*** Starting network\n')
     net.start()
+
 
     info( '*** Running CLI\n' )
     info( '*** BASIC USAGE:\n' )
@@ -58,19 +62,21 @@ def v2gNet():
     # info('%s %s\n'%(se1.IP(), se1.MAC()))
     # info('%s %s\n'%(ev1.IP(), ev1.MAC()))
     # info('%s %s\n'%(mim.IP(), mim.MAC()))
+    #s1.add_mim_flows(server=se1, client=ev1, mim=mim)
+    #MIM.add_mim_flows()
+    MIM.setup()
 
-    s1.add_mim_flows(se1, ev1, mim)
+    net.terms += makeTerm(MIM.MiMhost)
+    #net.terms += makeTerm(mim)
 
-    makeTerm(mim)
-
-    mim.start_decoder(in_xterm=False)
-    mim.start_spoof(se1, ev1)
+    #mim.start_decoder(in_xterm=False)
+    #mim.start_spoof()
     # this generates an entry in the table of source with macaddr of mim (but we don't care)
 
     info( '*** Starting charge on the SE.\n' )
     sleep(1)
     net.terms += [ se1.startCharge() ]
-
+    print(type(MIM))
     # tested connection (IPv4) 
     # # mim: nc -l -p 20000
     # # se1: nc 10.0.0.2 20000
