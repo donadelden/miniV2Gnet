@@ -1,4 +1,4 @@
-.common_ips.txt
+examples/.common_ips.txt
 mnexec
 *.pyc
 *~
