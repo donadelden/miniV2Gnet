@@ -21,7 +21,7 @@ def v2gNet():
 
     "Create a network with a controller, EV and SE connected via a switch."
 
-    start_on_load = False
+    start_on_load = True
 
     net = Mininet(  )
 
@@ -48,9 +48,9 @@ def v2gNet():
     net.start()
 
     info( '*** Running CLI\n' )
-    info( '*** BASIC USAGE:\n' )
-    info( '     - With `py ev1.charge(in_xterm=True)` the EV will start charging in the linked SE (manual by default).\n' )
-    info( '     - With `py se1.startCharge()` the SE will wait for charging EVs (if you close xterm on se1).\n' )
+    info( '*** For manual usage:\n' )
+    info( '     - With `py ev1.charge(in_xterm=True)` the EV will start charging in the linked SE.\n' )
+    info( '     - With `py se1.startCharge()` the SE will wait for charging EVs.\n' )
 
     info( '*** Starting charge on the SE.\n' )
     sleep( 1 ) # IMPORTANT! Give a second to the net to complete the setup (otherwise crashes are possible)

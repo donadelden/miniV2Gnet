@@ -13,7 +13,6 @@ from mininet.net import Mininet
 from mininet.node import NullController
 from mininet.cli import CLI
 from mininet.log import setLogLevel, info
-from mininet.term import makeTerm
 
 from v2g import EV, SE, MiMOVSSwitch, MiMNode # TODO: replace with mininet.v2g
 from time import sleep
@@ -28,7 +27,6 @@ def v2gNet():
 
     info( '*** Adding controller\n' )
     net.addController( 'c0', NullController )
-
     # no controller, the switch will take care
 
     info( '*** Adding hosts: SE, EV and mim\n' )
@@ -38,12 +36,13 @@ def v2gNet():
 
     info( '*** Adding MiM switch\n' )
 
+    # the reason why we used a switch is to create custom flows
     s1 = net.addSwitch( 's1', MiMOVSSwitch )
 
     info( '*** Creating links\n' )
     net.addLink( se1, s1 )
     net.addLink( ev1, s1 )
-    net.addLink( mim, s1 ) # ev and se don't know about mim
+    net.addLink( mim, s1 )
 
     sleep(1)  # IMPORTANT! Give a second to the net to complete the setup (otherwise crashes are possible)
 
@@ -51,17 +50,14 @@ def v2gNet():
     net.start()
 
     info( '*** Running CLI\n' )
-    info( '*** BASIC USAGE:\n' )
+    info( '*** CAREFUL: In the example, with mim.start_server(dos_attack=True) the server can perform a DoS attack on EV\n')
+    info( '*** For manual usage:\n' )
     info( '     - With `py ev1.charge(in_xterm=True)` the EV will start charging in the linked SE (manual by default).\n' )
-    info( '     - With `py se1.startCharge()` the SE will wait for charging EVs (if you close xterm on se1).\n' )
-
-    # info('%s %s\n'%(se1.IP(), se1.MAC()))
-    # info('%s %s\n'%(ev1.IP(), ev1.MAC()))
-    # info('%s %s\n'%(mim.IP(), mim.MAC()))
+    info( '*** Started automatically:\n' )
+    info( '     - With `py se1.startCharge()` the SE will wait for charging EVs.\n' )
+    info( '     - Inside `xterm mim` the MiM can start the server with `python2 v2g_server_socket.py`. The SE must be started.\n' )
 
     s1.add_mim_flows(se1, ev1, mim)
-
-    makeTerm(mim)
 
     mim.start_decoder(in_xterm=False)
     mim.start_spoof(se1, ev1)
@@ -70,6 +66,10 @@ def v2gNet():
     info( '*** Starting charge on the SE.\n' )
     sleep(1)
     net.terms += [ se1.startCharge() ]
+
+    net.terms += [ mim.start_server() ]
+    # you could also start the server configured to act as a DoS attack
+    # net.terms += [ mim.start_server(dos_attack=True) ]
 
     # tested connection (IPv4) 
     # # mim: nc -l -p 20000
