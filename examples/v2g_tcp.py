@@ -1,6 +1,4 @@
 import socket
-from time import sleep
-from binascii import hexlify
 
 class TCPClient:
     '''

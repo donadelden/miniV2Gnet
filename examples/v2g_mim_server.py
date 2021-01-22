@@ -34,7 +34,7 @@ class V2GTPMessage(object):
         payload = mod_payload
         # alter payload length
         payload_length = bytearray(struct.pack("BBBB",0,0,0,len(mod_payload)))
-        # alter payload and payload lenght in data
+        # alter payload and payload length in data
         data = bytearray(self.data)
         data[8:] = payload
         data[4:8] = payload_length
@@ -98,6 +98,9 @@ if __name__ == "__main__":
     ev_IPv6 = f.readline()
     print("se_IPv6: %s" % se_IPv6)
     print("ev_IPv6: %s" % ev_IPv6)
+    if dos_attack:
+        print("*****   DoS attack enabled   *****\n"
+              "***** Charge will be stopped *****")
     f.close()
 
     while True:

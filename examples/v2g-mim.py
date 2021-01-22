@@ -1,12 +1,14 @@
 #!/usr/bin/python
 
 """ 
-    Really simple and minimal testing module for v2g
-
-    To install RiseV2G on your local machine run: util/install.sh -g.
+    Really simple and minimal testing module for Man-in-the-Middle inside a v2g communication
+    To install RiseV2G and all the necessary for the MitM run: util/install.sh -G.
     It will:
-    - Create the directory /usr/share/.miniV2G/RiseV2G and copy in it all the RiseV2G files (latest jar releases and two config files);
-    - Make sure java, xterm, curl is installed and install it otherwise.
+    - Create the directory /usr/share/.miniV2G/RiseV2G and copy in it all the RiseV2G files:
+        > RiseV2G jar files;
+        > RiseV2G config files;
+        > V2GDecoder jar file;
+    - Make sure java, xterm, curl, parasite6 is installed and install it otherwise.
 """
 
 from mininet.net import Mininet
@@ -23,7 +25,7 @@ def v2gNet():
 
     start_on_load = False
 
-    net = Mininet(  )
+    net = Mininet()
 
     info( '*** Adding controller\n' )
     net.addController( 'c0', NullController )
@@ -86,7 +88,6 @@ def v2gNet():
     # # ev1: ncat -6 se1ipv6%ev1-eth0 200
 
     if start_on_load == True:
-        # TODO: move the sleep command to the SE and EV charge.
         info( '*** EV is charging.\n' )
         sleep( 1 ) # IMPORTANT! Give a second to the net to complete the setup (otherwise crashes are possible)
         net.terms += [ ev1.charge( in_xterm=True ) ]

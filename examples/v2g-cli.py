@@ -2,7 +2,6 @@
 
 """ 
     Really simple and minimal testing module for v2g
-
     To install RiseV2G on your local machine run: util/install.sh -g.
     It will:
     - Create the directory /usr/share/.miniV2G/RiseV2G and copy in it all the RiseV2G files (latest jar releases and two config files);
@@ -21,9 +20,7 @@ def v2gNet():
 
     "Create a network with a controller, EV and SE connected via a switch."
 
-    start_on_load = True
-
-    net = Mininet(  )
+    start_on_load = False
 
     net = Mininet( controller=Controller )
 
@@ -48,16 +45,17 @@ def v2gNet():
     net.start()
 
     info( '*** Running CLI\n' )
-    info( '*** For manual usage:\n' )
-    info( '     - With `py ev1.charge(in_xterm=True)` the EV will start charging in the linked SE.\n' )
+    info( '*** BASIC USAGE:\n' )
     info( '     - With `py se1.startCharge()` the SE will wait for charging EVs.\n' )
+    info( '     - With `py ev1.charge(in_xterm=True)` the EV will start charging in the linked SE.\n' )
 
-    info( '*** Starting charge on the SE.\n' )
-    sleep( 1 ) # IMPORTANT! Give a second to the net to complete the setup (otherwise crashes are possible)
-    net.terms += [ se1.startCharge() ]
+    # Activate TLS
+    # ev1.setTLS(True, True, se1)
 
     if start_on_load == True:
-        # TODO: move the sleep command to the SE and EV charge.
+        info( '*** Starting charge on the SE.\n' )
+        sleep( 1 ) # IMPORTANT! Give a second to the net to complete the setup (otherwise crashes are possible)
+        net.terms += [ se1.startCharge() ]
         info( '*** EV is charging.\n' )
         sleep( 1 )
         net.terms += [ ev1.charge( in_xterm=True ) ]
