@@ -50,7 +50,8 @@ def v2gNet():
     net.start()
 
     info( '*** Running CLI\n' )
-    info( '*** CAREFUL: In the example, with mim.start_server(dos_attack=True) the server can perform a DoS attack on EV\n')
+    info( '*** CAREFUL: In the example, with mim.start_server(dos_attack_1=True) the server can perform a DoS attack on EV (protocol version)\n')
+    info( '*** CAREFUL: In the example, with mim.start_server(dos_attack_2=True) the server can perform a DoS attack on EV (removing charge options)\n')
     info( '*** For manual usage:\n' )
     info( '     - With `py ev1.charge(in_xterm=True)` the EV will start charging in the linked SE (manual by default).\n' )
     info( '*** Started automatically:\n' )
@@ -69,7 +70,8 @@ def v2gNet():
 
     net.terms += [ mim.start_server() ]
     # you could also start the server configured to act as a DoS attack
-    # net.terms += [ mim.start_server(dos_attack=True) ]
+    # net.terms += [ mim.start_server(dos_attack_1=True) ]
+    # net.terms += [ mim.start_server(dos_attack_2=True) ]
 
     # tested connection (IPv4) 
     # # mim: nc -l -p 20000
